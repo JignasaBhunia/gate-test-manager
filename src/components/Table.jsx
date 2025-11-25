@@ -91,26 +91,17 @@ window.AppComponents.Table = function Table(props) {
                                 <th>Status</th>
                                 <th>Obtained</th>
                                 <th>Potential</th>
+                                <th>% Marks</th>
                                 <th>Percentile</th>
                                 <th>Rank</th>
                                 <th>Actions</th>
                             </tr>
-                        </thead>
-                        <tbody>
-                            {filteredTests.map(test => (
-                                <tr key={test.id}>
-                                    <td>{test.id}</td>
-                                    <td className={`platform-${test.platform?.toLowerCase().replace(/\s+/g, '-')}`}>
-                                        {test.platform}
-                                    </td>
-                                    <td>{test.name}</td>
-                                    <td>{test.subject}</td>
                                     <td>
-                                        <span className={`badge badge-${(test.type||'').toLowerCase()}`}>
-                                            {test.type}
-                                        </span>
+                                        {test.percentMarks !== undefined && test.percentMarks !== '' ? `${test.percentMarks}%` : '-'}
                                     </td>
-                                    <td>{test.questions}</td>
+                                    <td>
+                                        {test.percentile || '-'}
+                                    </td>
                                     <td>{test.marks}</td>
                                     <td>{test.time}m</td>
                                     <td>

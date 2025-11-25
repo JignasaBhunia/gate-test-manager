@@ -35,37 +35,54 @@ function parseCSV(csv) {
 }
 
 // Compute percentile for each test based on marks_obtained / marks (as percentage)
-function computePercentiles(arr) {
+// Derive percent marks and percentile for each test.
+// If user supplies rank and total_students, percentile is computed from rank.
+// Otherwise percentile is computed from percent-marks distribution across tests.
+function deriveMetrics(arr) {
     try {
         const cloned = (arr || []).map(t => ({ ...t }));
-        // compute scores
+
+        // compute percent marks for each test
         const scored = cloned.map(t => {
             const mGot = parseFloat(t.marks_obtained);
             const mTot = parseFloat(t.marks);
-            let score = null;
-            if (!isNaN(mGot) && !isNaN(mTot) && mTot > 0) score = (mGot / mTot) * 100;
-            else if (!isNaN(mGot)) score = mGot;
-            return { ...t, __score: score };
+            let percentMarks = null;
+            if (!isNaN(mGot) && !isNaN(mTot) && mTot > 0) percentMarks = (mGot / mTot) * 100;
+            else if (!isNaN(mGot)) percentMarks = mGot;
+            return { ...t, __percentMarks: percentMarks };
         });
 
-        const validScores = scored.filter(s => s.__score !== null).map(s => s.__score).sort((a, b) => a - b);
+        // build array of valid percentMarks
+        const validScores = scored.filter(s => s.__percentMarks !== null).map(s => s.__percentMarks).sort((a, b) => a - b);
         const n = validScores.length;
-        if (n === 0) return arr.map(t => ({ ...t, percentile: '' }));
 
         return scored.map(s => {
-            if (s.__score === null) return { ...s, percentile: '' };
-            const below = validScores.filter(x => x < s.__score).length;
-            const equal = validScores.filter(x => x === s.__score).length;
-            const perc = ((below + 0.5 * equal) / n) * 100;
-            return { ...s, percentile: parseFloat(perc.toFixed(1)) };
-        }).map(t => {
-            // remove helper
-            const copy = { ...t };
-            delete copy.__score;
-            return copy;
+            const out = { ...s };
+            // percent marks rounded
+            out.percentMarks = (out.__percentMarks !== null && out.__percentMarks !== undefined) ? parseFloat(out.__percentMarks.toFixed(1)) : '';
+
+            // if user provided rank and total_students, compute percentile from that
+            const rank = parseInt(out.rank, 10);
+            const total = parseInt(out.total_students || out.totalStudents || out.total, 10);
+            if (!isNaN(rank) && rank > 0 && !isNaN(total) && total > 0) {
+                // percentile as proportion of students below or equal: ((total - rank + 1) / total) * 100
+                const p = ((total - rank + 1) / total) * 100;
+                out.percentile = parseFloat(p.toFixed(1));
+            } else if (n > 0 && out.__percentMarks !== null) {
+                // compute percentile based on distribution of percentMarks
+                const below = validScores.filter(x => x < out.__percentMarks).length;
+                const equal = validScores.filter(x => x === out.__percentMarks).length;
+                const perc = ((below + 0.5 * equal) / n) * 100;
+                out.percentile = parseFloat(perc.toFixed(1));
+            } else {
+                out.percentile = '';
+            }
+
+            delete out.__percentMarks;
+            return out;
         });
     } catch (e) {
-        console.warn('computePercentiles failed', e);
+        console.warn('deriveMetrics failed', e);
         return arr;
     }
 }
@@ -89,7 +106,8 @@ function App() {
     const firebaseRef = useRef(null);
     const applyingRemote = useRef(false);
     const [showAnalyticsModal, setShowAnalyticsModal] = useState(false);
-    const analyticsRefs = useRef({ hist: null, pie: null });
+    const analyticsRefs = useRef({ hist: null, pie: null, timeSeries: null });
+    const [analyticsSubject, setAnalyticsSubject] = useState('');
     const [showRandomModal, setShowRandomModal] = useState(false);
     const [pickedRandom, setPickedRandom] = useState(null);
     const [randomOptions, setRandomOptions] = useState({ platform: '', subject: '', type: '', status: '', useCurrentFilters: true });
@@ -109,12 +127,12 @@ function App() {
         // Load tests from localStorage first, fallback to CSV
         try {
             const raw = localStorage.getItem(STORAGE_KEY);
-                if (raw) {
-                        const local = JSON.parse(raw);
-                        setTests(computePercentiles(local));
-                        setLoading(false);
-                        return;
-                    }
+            if (raw) {
+                const local = JSON.parse(raw);
+                setTests(deriveMetrics(local));
+                setLoading(false);
+                return;
+            }
         } catch (e) {
             console.warn('Failed to read local storage', e);
         }
@@ -125,11 +143,11 @@ function App() {
                 if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
                 return response.text();
             })
-                    .then(csv => {
-                        const parsedTests = parseCSV(csv);
-                        setTests(computePercentiles(parsedTests));
-                        setLoading(false);
-                    })
+            .then(csv => {
+                const parsedTests = parseCSV(csv);
+                setTests(deriveMetrics(parsedTests));
+                setLoading(false);
+            })
             .catch(err => {
                 console.error('Error loading CSV:', err);
                 setError(err.message);
@@ -167,23 +185,23 @@ function App() {
 
             // Observe auth state
             firebase.auth().onAuthStateChanged(u => {
-                            if (u) {
-                            setUser(u);
-                            firebaseRef.current = { uid: u.uid };
+                if (u) {
+                    setUser(u);
+                    firebaseRef.current = { uid: u.uid };
                     // write basic public profile (opt-in)
                     try {
                         firebase.database().ref(`users/${u.uid}/profile`).update({ displayName: u.displayName || null, email: u.email || null, photoURL: u.photoURL || null, lastSeen: Date.now() });
                     } catch(e) { console.warn('profile write failed', e); }
 
                     // listen to user's tests
-                            const dbRef = firebase.database().ref(`users/${u.uid}/tests`);
-                            dbRef.on('value', snap => {
-                                const remote = snap.val();
-                                if (!remote) return;
-                                applyingRemote.current = true;
-                                setTests(computePercentiles(remote));
-                                setTimeout(() => { applyingRemote.current = false; }, 300);
-                            });
+                    const dbRef = firebase.database().ref(`users/${u.uid}/tests`);
+                    dbRef.on('value', snap => {
+                        const remote = snap.val();
+                        if (!remote) return;
+                        applyingRemote.current = true;
+                        setTests(deriveMetrics(remote));
+                        setTimeout(() => { applyingRemote.current = false; }, 300);
+                    });
                 } else {
                     setUser(null);
                     firebaseRef.current = null;
@@ -290,7 +308,7 @@ function App() {
     };
 
     const handleCellEdit = (testId, field, value) => {
-        setTests(prev => computePercentiles(prev.map(test => 
+        setTests(prev => deriveMetrics(prev.map(test => 
             test.id === testId ? { ...test, [field]: value } : test
         )));
         setEditingCell(null);
@@ -302,14 +320,14 @@ function App() {
     };
 
     const saveEditedTest = () => {
-        setTests(prev => computePercentiles(prev.map(test => test.id === editingTest.id ? { ...editingTest, updatedAt: Date.now() } : test)));
+        setTests(prev => deriveMetrics(prev.map(test => test.id === editingTest.id ? { ...editingTest, updatedAt: Date.now() } : test)));
         setShowEditModal(false);
         setEditingTest(null);
     };
 
     // Add / Delete helpers
     const openAddModal = () => {
-        setNewTest({ platform: '', platformNew: '', subject: '', subjectNew: '', type: '', typeNew: '', name: '', date: '', questions: '', marks: '', time: '', syllabus: '', link: '', remarks: '', status: 'Not Started', marks_obtained: '', potential_marks: '', percentile: '', rank: '' });
+        setNewTest({ platform: '', platformNew: '', subject: '', subjectNew: '', type: '', typeNew: '', name: '', date: '', questions: '', marks: '', time: '', syllabus: '', link: '', remarks: '', status: 'Not Started', marks_obtained: '', potential_marks: '', rank: '', total_students: '' });
         setShowNewPlatformInput(false);
         setShowNewSubjectInput(false);
         setShowNewTypeInput(false);
@@ -326,14 +344,14 @@ function App() {
         if (testToAdd.platformNew) delete testToAdd.platformNew;
         if (testToAdd.subjectNew) delete testToAdd.subjectNew;
         if (testToAdd.typeNew) delete testToAdd.typeNew;
-        setTests(prev => computePercentiles([testToAdd, ...prev]));
+        setTests(prev => deriveMetrics([testToAdd, ...prev]));
         setShowAddModal(false);
         setShowNewPlatformInput(false);
     };
 
     const deleteTest = (testId) => {
         if (!confirm('Delete this test? This cannot be undone.')) return;
-        setTests(prev => computePercentiles(prev.filter(t => t.id !== testId)));
+        setTests(prev => deriveMetrics(prev.filter(t => t.id !== testId)));
     };
 
     // Theme & Sync helpers
@@ -368,7 +386,7 @@ function App() {
         }
     };
 
-    // Fetch list of users (for comparison) - limited to first 200
+    // Fetch list of users (for comparison) - limited to first 10 for safety
     const fetchOtherUsers = async () => {
         if (!window.firebase) return;
         try {
@@ -428,27 +446,81 @@ function App() {
 
             // Render histogram
             try {
-                const ctx = document.getElementById('chartHistogram').getContext('2d');
-                if (analyticsRefs.current.hist) analyticsRefs.current.hist.destroy();
-                analyticsRefs.current.hist = new Chart(ctx, {
-                    type: 'bar',
-                    data: { labels: baseBuckets.labels, datasets },
-                    options: { responsive: true, plugins: { legend: { position: 'top' } }, scales: { y: { beginAtZero: true } } }
-                });
+                const ctx = document.getElementById('chartHistogram')?.getContext('2d');
+                if (ctx) {
+                    if (analyticsRefs.current.hist) analyticsRefs.current.hist.destroy();
+                    analyticsRefs.current.hist = new Chart(ctx, {
+                        type: 'bar',
+                        data: { labels: baseBuckets.labels, datasets },
+                        options: { responsive: true, plugins: { legend: { position: 'top' } }, scales: { y: { beginAtZero: true } } }
+                    });
+                }
             } catch (e) { console.warn('Histogram render failed', e); }
 
             // Platform pie chart
             const platformCounts = {};
             tests.forEach(t => { platformCounts[t.platform] = (platformCounts[t.platform] || 0) + 1; });
             try {
-                const ctx2 = document.getElementById('chartPlatform').getContext('2d');
-                if (analyticsRefs.current.pie) analyticsRefs.current.pie.destroy();
-                analyticsRefs.current.pie = new Chart(ctx2, {
-                    type: 'pie',
-                    data: { labels: Object.keys(platformCounts), datasets: [{ data: Object.values(platformCounts), backgroundColor: Object.keys(platformCounts).map((_,i)=>`hsl(${i*60},70%,60%)` ) }] },
-                    options: { responsive: true }
-                });
+                const ctx2 = document.getElementById('chartPlatform')?.getContext('2d');
+                if (ctx2) {
+                    if (analyticsRefs.current.pie) analyticsRefs.current.pie.destroy();
+                    analyticsRefs.current.pie = new Chart(ctx2, {
+                        type: 'pie',
+                        data: { labels: Object.keys(platformCounts), datasets: [{ data: Object.values(platformCounts), backgroundColor: Object.keys(platformCounts).map((_,i)=>`hsl(${i*60},70%,60%)` ) }] },
+                        options: { responsive: true }
+                    });
+                }
             } catch (e) { console.warn('Platform pie render failed', e); }
+
+            // Time-series chart (percentMarks over time + marks-lost)
+            try {
+                const dateAgg = {};
+                tests.forEach(t => {
+                    if (analyticsSubject && analyticsSubject !== '' && t.subject !== analyticsSubject) return;
+                    if (!t.date) return;
+                    const d = new Date(t.date);
+                    if (isNaN(d)) return;
+                    const key = d.toISOString().slice(0,10);
+                    const pm = parseFloat(t.percentMarks);
+                    const mGot = parseFloat(t.marks_obtained);
+                    const potential = (t.potential_marks !== undefined && t.potential_marks !== '') ? parseFloat(t.potential_marks) : parseFloat(t.marks);
+                    const marksLost = (!isNaN(potential) && !isNaN(mGot)) ? (potential - mGot) : null;
+                    if (!dateAgg[key]) dateAgg[key] = { count:0, sumPm:0, sumLost:0, lostCount:0 };
+                    if (!isNaN(pm)) { dateAgg[key].count++; dateAgg[key].sumPm += pm; }
+                    if (marksLost !== null && !isNaN(marksLost)) { dateAgg[key].sumLost += marksLost; dateAgg[key].lostCount++; }
+                });
+
+                const dates = Object.keys(dateAgg).sort();
+                const labelsTS = dates;
+                const dataPm = dates.map(d => dateAgg[d].count ? parseFloat((dateAgg[d].sumPm / dateAgg[d].count).toFixed(1)) : null);
+                const dataLost = dates.map(d => dateAgg[d].lostCount ? parseFloat((dateAgg[d].sumLost / dateAgg[d].lostCount).toFixed(1)) : null);
+
+                const ctx3 = document.getElementById('chartTimeSeries')?.getContext('2d');
+                if (ctx3) {
+                    if (analyticsRefs.current.timeSeries) analyticsRefs.current.timeSeries.destroy();
+                    analyticsRefs.current.timeSeries = new Chart(ctx3, {
+                        type: 'line',
+                        data: {
+                            labels: labelsTS,
+                            datasets: [
+                                { label: 'Percent Marks (avg)', data: dataPm, borderColor: 'rgba(66,153,225,0.9)', backgroundColor: 'rgba(66,153,225,0.2)', yAxisID: 'y' },
+                                { label: 'Marks Lost (avg)', data: dataLost, borderColor: 'rgba(229,62,62,0.9)', backgroundColor: 'rgba(229,62,62,0.2)', yAxisID: 'y2' }
+                            ]
+                        },
+                        options: {
+                            responsive:true,
+                            interaction: { mode:'index', intersect:false },
+                            plugins: { legend: { position: 'top' } },
+                            scales: {
+                                x: { title: { display: true, text: 'Date' } },
+                                y: { type:'linear', display:true, position:'left', title: { display:true, text:'Percent Marks (%)' }, beginAtZero:true, max:100 },
+                                y2: { type:'linear', display:true, position:'right', title: { display:true, text:'Marks Lost' }, beginAtZero:true, grid: { drawOnChartArea:false } }
+                            }
+                        }
+                    });
+                }
+            } catch(e) { console.warn('Time series render failed', e); }
+
         } catch (e) { console.warn('drawAnalyticsCharts failed', e); }
     };
 
@@ -458,7 +530,7 @@ function App() {
         fetchOtherUsers();
         // draw charts
         drawAnalyticsCharts();
-    }, [showAnalyticsModal, tests, selectedCompareUsers]);
+    }, [showAnalyticsModal, tests, selectedCompareUsers, analyticsSubject]);
 
     const performRandomPick = () => {
         let pool = tests.slice();
@@ -613,7 +685,11 @@ function App() {
                         </div>
                         <div className="form-group">
                             <label>Rank</label>
-                            <input type="text" value={editingTest.rank || ''} onChange={e => setEditingTest({...editingTest, rank: e.target.value})} />
+                            <input type="number" min="1" value={editingTest.rank || ''} onChange={e => setEditingTest({...editingTest, rank: e.target.value})} />
+                        </div>
+                        <div className="form-group">
+                            <label>Total Students</label>
+                            <input type="number" min="1" value={editingTest.total_students || editingTest.totalStudents || ''} onChange={e => setEditingTest({...editingTest, total_students: e.target.value})} />
                         </div>
                         <div className="modal-actions">
                             <button className="btn-secondary" onClick={() => setShowEditModal(false)}>
@@ -684,7 +760,8 @@ function App() {
                         <div className="form-group"><label>Marks</label><input type="number" value={newTest.marks} onChange={e => setNewTest({...newTest, marks: e.target.value})} /></div>
                         <div className="form-group"><label>Time (minutes)</label><input type="number" value={newTest.time} onChange={e => setNewTest({...newTest, time: e.target.value})} /></div>
                         <div className="form-group"><label>Remarks</label><textarea value={newTest.remarks} onChange={e => setNewTest({...newTest, remarks: e.target.value})} /></div>
-                        <div className="form-group"><label>Rank</label><input type="text" value={newTest.rank} onChange={e => setNewTest({...newTest, rank: e.target.value})} /></div>
+                        <div className="form-group"><label>Rank</label><input type="number" min="1" value={newTest.rank} onChange={e => setNewTest({...newTest, rank: e.target.value})} /></div>
+                        <div className="form-group"><label>Total Students</label><input type="number" min="1" value={newTest.total_students} onChange={e => setNewTest({...newTest, total_students: e.target.value})} /></div>
                         <div className="modal-actions">
                             <button className="btn-secondary" onClick={() => setShowAddModal(false)}>Cancel</button>
                             <button className="btn-primary" onClick={addNewTest}>Add Test</button>
@@ -702,7 +779,7 @@ function App() {
                             <div style={{flex:1}}>
                                 <label style={{display:'block', marginBottom:6}}>Compare with users</label>
                                 <div style={{display:'flex', gap:8, alignItems:'center'}}>
-                                            <select multiple style={{minHeight:80, width:'100%'}} value={selectedCompareUsers} onChange={e => setSelectedCompareUsers(Array.from(e.target.selectedOptions).map(o=>o.value).slice(0, MAX_COMPARE_USERS))}>
+                                    <select multiple style={{minHeight:80, width:'100%'}} value={selectedCompareUsers} onChange={e => setSelectedCompareUsers(Array.from(e.target.selectedOptions).map(o=>o.value).slice(0, MAX_COMPARE_USERS))}>
                                         {otherUsers.map(u => <option key={u.uid} value={u.uid}>{u.displayName} ({u.uid.slice(0,6)})</option>)}
                                     </select>
                                 </div>
@@ -718,6 +795,13 @@ function App() {
                                     <div><strong>Platforms:</strong> {uniqueValues.platforms.join(', ')}</div>
                                 </div>
                             </div>
+                            <div style={{width:220}}>
+                                <label style={{display:'block', marginBottom:6}}>Subject Filter</label>
+                                <select value={analyticsSubject} onChange={e => setAnalyticsSubject(e.target.value)}>
+                                    <option value=''>All Subjects</option>
+                                    {uniqueValues.subjects.map(s => <option key={s} value={s}>{s}</option>)}
+                                </select>
+                            </div>
                         </div>
 
                         <div style={{display:'grid', gridTemplateColumns:'1fr 360px', gap:16}}>
@@ -727,6 +811,10 @@ function App() {
                             <div style={{background:'var(--card)', padding:12, borderRadius:8}}>
                                 <canvas id="chartPlatform" width="300" height="300" />
                             </div>
+                        </div>
+
+                        <div style={{background:'var(--card)', padding:12, borderRadius:8, marginTop:12}}>
+                            <canvas id="chartTimeSeries" width="1000" height="280" />
                         </div>
 
                         <div className="modal-actions" style={{marginTop:16}}>
@@ -815,4 +903,5 @@ function App() {
 }
 
 // expose App to global scope so the bootstrap script can render it
+window.App = App;
 window.App = App;
