@@ -119,6 +119,40 @@ function App() {
     const [showNewTypeInput, setShowNewTypeInput] = useState(false);
     const [csvBlobUrl, setCsvBlobUrl] = useState(null);
 
+    // Column Visibility State
+    const ALL_COLUMNS = [
+        { id: 'id', label: 'ID', default: true },
+        { id: 'platform', label: 'Platform', default: true },
+        { id: 'name', label: 'Test Name', default: true },
+        { id: 'subject', label: 'Subject', default: true },
+        { id: 'type', label: 'Type', default: false },
+        { id: 'questions', label: 'Q', default: false },
+        { id: 'marks', label: 'Marks', default: false },
+        { id: 'time', label: 'Time', default: false },
+        { id: 'status', label: 'Status', default: true },
+        { id: 'marks_obtained', label: 'Obtained', default: false },
+        { id: 'potential_marks', label: 'Potential', default: false },
+        { id: 'percentMarks', label: '% Marks', default: true },
+        { id: 'percentile', label: 'Percentile', default: false },
+        { id: 'rank', label: 'Rank', default: false },
+        { id: 'actions', label: 'Actions', default: true, locked: true }
+    ];
+
+    const [visibleColumns, setVisibleColumns] = useState(() => {
+        const saved = localStorage.getItem('gate_visible_columns');
+        return saved ? JSON.parse(saved) : ALL_COLUMNS.filter(c => c.default).map(c => c.id);
+    });
+
+    const toggleColumn = (colId) => {
+        setVisibleColumns(prev => {
+            const newCols = prev.includes(colId)
+                ? prev.filter(c => c !== colId)
+                : [...prev, colId];
+            localStorage.setItem('gate_visible_columns', JSON.stringify(newCols));
+            return newCols;
+        });
+    };
+
 
     useEffect(() => {
         // load settings
@@ -547,303 +581,278 @@ function App() {
                     } catch (e) { alert('Firebase not initialized. Open Sync settings to configure.'); setShowSyncModal(true); }
                 }}
                 onSignOut={() => { try { firebase.auth().signOut(); } catch (e) { } }}
-                currentView={currentView}
-                setCurrentView={setCurrentView}
-            />
-
-            {currentView === 'dashboard' ? (
-                <Table
-                    metrics={metrics}
-                    filters={filters}
-                    uniqueValues={uniqueValues}
-                    handleFilterChange={handleFilterChange}
-                    clearFilters={clearFilters}
-                    pickRandomTest={pickRandomTest}
-                    downloadCSV={downloadCSV}
-                    filteredTests={filteredTests}
-                    editingCell={editingCell}
-                    setEditingCell={setEditingCell}
-                    handleCellEdit={handleCellEdit}
-                    updateTestStatus={updateTestStatus}
-                    openEditModal={openEditModal}
-                    deleteTest={deleteTest}
-                />
-            ) : (
-                <Analytics tests={tests} user={user} otherUsers={otherUsers} />
-            )}
-
-            {showEditModal && (
-                <div className="modal active">
-                    <div className="modal-content">
-                        <h2>Edit Test Details</h2>
-                        <div className="form-group">
-                            <label>Test Name</label>
-                            <input
-                                type="text"
-                                value={editingTest.name}
-                                onChange={e => setEditingTest({ ...editingTest, name: e.target.value })}
-                            />
-                        </div>
-                        <div className="form-group">
-                            <label>Date</label>
-                            <input
-                                type="date"
-                                value={editingTest.date}
-                                onChange={e => setEditingTest({ ...editingTest, date: e.target.value })}
-                            />
-                        </div>
-                        <div className="form-group">
-                            <label>Subject</label>
-                            <input
-                                type="text"
-                                value={editingTest.subject}
-                                onChange={e => setEditingTest({ ...editingTest, subject: e.target.value })}
-                            />
-                        </div>
-                        <div className="form-group">
-                            <label>Type</label>
-                            <input
-                                type="text"
-                                value={editingTest.type}
-                                onChange={e => setEditingTest({ ...editingTest, type: e.target.value })}
-                            />
-                        </div>
-                        <div className="form-group">
-                            <label>Questions</label>
-                            <input
-                                type="number"
-                                value={editingTest.questions}
-                                onChange={e => setEditingTest({ ...editingTest, questions: e.target.value })}
-                            />
-                        </div>
-                        <div className="form-group">
-                            <label>Marks</label>
-                            <input
-                                type="number"
-                                value={editingTest.marks}
-                                onChange={e => setEditingTest({ ...editingTest, marks: e.target.value })}
-                            />
-                        </div>
-                        <div className="form-group">
-                            <label>Marks Obtained</label>
-                            <input
-                                type="number"
-                                value={editingTest.marks_obtained}
-                                onChange={e => setEditingTest({ ...editingTest, marks_obtained: e.target.value })}
-                            />
-                        </div>
-                        <div className="form-group">
-                            <label>Potential Marks</label>
-                            <input
-                                type="number"
-                                value={editingTest.potential_marks}
-                                onChange={e => setEditingTest({ ...editingTest, potential_marks: e.target.value })}
-                            />
-                        </div>
-                        <div className="form-group">
-                            <label>Percentile (Calculated)</label>
-                            <input
-                                type="text"
-                                value={editingTest.percentile || ''}
-                                disabled
-                                style={{ background: 'var(--surface-variant)', opacity: 0.7 }}
-                            />
-                        </div>
-                        <div className="form-group">
-                            <label>Time (minutes)</label>
-                            <input
-                                type="number"
-                                value={editingTest.time}
-                                onChange={e => setEditingTest({ ...editingTest, time: e.target.value })}
-                            />
-                        </div>
-                        <div className="form-group">
-                            <label>Syllabus</label>
-                            <textarea
-                                value={editingTest.syllabus}
-                                onChange={e => setEditingTest({ ...editingTest, syllabus: e.target.value })}
-                            />
-                        </div>
-                        <div className="form-group">
-                            <label>Link</label>
-                            <input
-                                type="url"
-                                value={editingTest.link}
-                                onChange={e => setEditingTest({ ...editingTest, link: e.target.value })}
-                            />
-                        </div>
-                        <div className="form-group">
-                            <label>Remarks</label>
-                            <textarea
-                                value={editingTest.remarks}
-                                onChange={e => setEditingTest({ ...editingTest, remarks: e.target.value })}
-                            />
-                        </div>
-                        <div className="form-group">
-                            <label>Rank</label>
-                            <input type="number" min="1" value={editingTest.rank || ''} onChange={e => setEditingTest({ ...editingTest, rank: e.target.value })} />
-                        </div>
-                        <div className="form-group">
-                            <label>Total Students</label>
-                            <input type="number" min="1" value={editingTest.total_students || editingTest.totalStudents || ''} onChange={e => setEditingTest({ ...editingTest, total_students: e.target.value })} />
-                        </div>
-                        <div className="modal-actions">
-                            <button className="btn-secondary" onClick={() => setShowEditModal(false)}>
-                                Cancel
-                            </button>
-                            <button className="btn-primary" onClick={saveEditedTest}>
-                                Save Changes
-                            </button>
+                {showEditModal && (
+                    <div className="modal active">
+                        <div className="modal-content">
+                            <h2>Edit Test Details</h2>
+                            <div className="form-group">
+                                <label>Test Name</label>
+                                <input
+                                    type="text"
+                                    value={editingTest.name}
+                                    onChange={e => setEditingTest({ ...editingTest, name: e.target.value })}
+                                />
+                            </div>
+                            <div className="form-group">
+                                <label>Date</label>
+                                <input
+                                    type="date"
+                                    value={editingTest.date}
+                                    onChange={e => setEditingTest({ ...editingTest, date: e.target.value })}
+                                />
+                            </div>
+                            <div className="form-group">
+                                <label>Subject</label>
+                                <input
+                                    type="text"
+                                    value={editingTest.subject}
+                                    onChange={e => setEditingTest({ ...editingTest, subject: e.target.value })}
+                                />
+                            </div>
+                            <div className="form-group">
+                                <label>Type</label>
+                                <input
+                                    type="text"
+                                    value={editingTest.type}
+                                    onChange={e => setEditingTest({ ...editingTest, type: e.target.value })}
+                                />
+                            </div>
+                            <div className="form-group">
+                                <label>Questions</label>
+                                <input
+                                    type="number"
+                                    value={editingTest.questions}
+                                    onChange={e => setEditingTest({ ...editingTest, questions: e.target.value })}
+                                />
+                            </div>
+                            <div className="form-group">
+                                <label>Marks</label>
+                                <input
+                                    type="number"
+                                    value={editingTest.marks}
+                                    onChange={e => setEditingTest({ ...editingTest, marks: e.target.value })}
+                                />
+                            </div>
+                            <div className="form-group">
+                                <label>Marks Obtained</label>
+                                <input
+                                    type="number"
+                                    value={editingTest.marks_obtained}
+                                    onChange={e => setEditingTest({ ...editingTest, marks_obtained: e.target.value })}
+                                />
+                            </div>
+                            <div className="form-group">
+                                <label>Potential Marks</label>
+                                <input
+                                    type="number"
+                                    value={editingTest.potential_marks}
+                                    onChange={e => setEditingTest({ ...editingTest, potential_marks: e.target.value })}
+                                />
+                            </div>
+                            <div className="form-group">
+                                <label>Percentile (Calculated)</label>
+                                <input
+                                    type="text"
+                                    value={editingTest.percentile || ''}
+                                    disabled
+                                    style={{ background: 'var(--surface-variant)', opacity: 0.7 }}
+                                />
+                            </div>
+                            <div className="form-group">
+                                <label>Time (minutes)</label>
+                                <input
+                                    type="number"
+                                    value={editingTest.time}
+                                    onChange={e => setEditingTest({ ...editingTest, time: e.target.value })}
+                                />
+                            </div>
+                            <div className="form-group">
+                                <label>Syllabus</label>
+                                <textarea
+                                    value={editingTest.syllabus}
+                                    onChange={e => setEditingTest({ ...editingTest, syllabus: e.target.value })}
+                                />
+                            </div>
+                            <div className="form-group">
+                                <label>Link</label>
+                                <input
+                                    type="url"
+                                    value={editingTest.link}
+                                    onChange={e => setEditingTest({ ...editingTest, link: e.target.value })}
+                                />
+                            </div>
+                            <div className="form-group">
+                                <label>Remarks</label>
+                                <textarea
+                                    value={editingTest.remarks}
+                                    onChange={e => setEditingTest({ ...editingTest, remarks: e.target.value })}
+                                />
+                            </div>
+                            <div className="form-group">
+                                <label>Rank</label>
+                                <input type="number" min="1" value={editingTest.rank || ''} onChange={e => setEditingTest({ ...editingTest, rank: e.target.value })} />
+                            </div>
+                            <div className="form-group">
+                                <label>Total Students</label>
+                                <input type="number" min="1" value={editingTest.total_students || editingTest.totalStudents || ''} onChange={e => setEditingTest({ ...editingTest, total_students: e.target.value })} />
+                            </div>
+                            <div className="modal-actions">
+                                <button className="btn-secondary" onClick={() => setShowEditModal(false)}>
+                                    Cancel
+                                </button>
+                                <button className="btn-primary" onClick={saveEditedTest}>
+                                    Save Changes
+                                </button>
+                            </div>
                         </div>
                     </div>
-                </div>
-            )}
-            {showAddModal && (
-                <div className="modal active">
-                    <div className="modal-content">
-                        <h2>Add New Test</h2>
-                        <div className="form-group">
-                            <label>Test Name</label>
-                            <input type="text" value={newTest.name} onChange={e => setNewTest({ ...newTest, name: e.target.value })} />
-                        </div>
-                        <div className="form-group">
-                            <label>Platform</label>
-                            <div style={{ display: 'flex', gap: 8 }}>
-                                <select value={newTest.platform} onChange={e => setNewTest({ ...newTest, platform: e.target.value })}>
-                                    <option value="">Select Platform</option>
-                                    {uniqueValues.platforms.map(p => <option key={p} value={p}>{p}</option>)}
-                                </select>
-                                <button className="btn-secondary" style={{ padding: '8px 10px' }} onClick={() => setShowNewPlatformInput(v => !v)}>{showNewPlatformInput ? 'Cancel' : 'Add New'}</button>
+                )}
+                {showAddModal && (
+                    <div className="modal active">
+                        <div className="modal-content">
+                            <h2>Add New Test</h2>
+                            <div className="form-group">
+                                <label>Test Name</label>
+                                <input type="text" value={newTest.name} onChange={e => setNewTest({ ...newTest, name: e.target.value })} />
                             </div>
-                            {showNewPlatformInput && (
-                                <div style={{ marginTop: 8 }}>
-                                    <input placeholder="New platform name" value={newTest.platformNew} onChange={e => setNewTest({ ...newTest, platformNew: e.target.value })} />
-                                </div>
-                            )}
-                        </div>
-                        <div className="form-group">
-                            <label>Subject</label>
-                            <div style={{ display: 'flex', gap: 8 }}>
-                                <select value={newTest.subject} onChange={e => setNewTest({ ...newTest, subject: e.target.value })}>
-                                    <option value="">Select Subject</option>
-                                    {uniqueValues.subjects.map(s => <option key={s} value={s}>{s}</option>)}
-                                </select>
-                                <button className="btn-secondary" style={{ padding: '8px 10px' }} onClick={() => setShowNewSubjectInput(v => !v)}>{showNewSubjectInput ? 'Cancel' : 'Add New'}</button>
-                            </div>
-                            {showNewSubjectInput && (
-                                <div style={{ marginTop: 8 }}>
-                                    <input placeholder="New subject" value={newTest.subjectNew} onChange={e => setNewTest({ ...newTest, subjectNew: e.target.value })} />
-                                </div>
-                            )}
-                        </div>
-                        <div className="form-group">
-                            <label>Type</label>
-                            <div style={{ display: 'flex', gap: 8 }}>
-                                <select value={newTest.type} onChange={e => setNewTest({ ...newTest, type: e.target.value })}>
-                                    <option value="">Select Type</option>
-                                    {uniqueValues.types.map(t => <option key={t} value={t}>{t}</option>)}
-                                </select>
-                                <button className="btn-secondary" style={{ padding: '8px 10px' }} onClick={() => setShowNewTypeInput(v => !v)}>{showNewTypeInput ? 'Cancel' : 'Add New'}</button>
-                            </div>
-                            {showNewTypeInput && (
-                                <div style={{ marginTop: 8 }}>
-                                    <input placeholder="New type" value={newTest.typeNew} onChange={e => setNewTest({ ...newTest, typeNew: e.target.value })} />
-                                </div>
-                            )}
-                        </div>
-                        <div className="form-group"><label>Date</label><input type="date" value={newTest.date} onChange={e => setNewTest({ ...newTest, date: e.target.value })} /></div>
-                        <div className="form-group"><label>Questions</label><input type="number" value={newTest.questions} onChange={e => setNewTest({ ...newTest, questions: e.target.value })} /></div>
-                        <div className="form-group"><label>Marks</label><input type="number" value={newTest.marks} onChange={e => setNewTest({ ...newTest, marks: e.target.value })} /></div>
-                        <div className="form-group"><label>Time (minutes)</label><input type="number" value={newTest.time} onChange={e => setNewTest({ ...newTest, time: e.target.value })} /></div>
-                        <div className="form-group"><label>Remarks</label><textarea value={newTest.remarks} onChange={e => setNewTest({ ...newTest, remarks: e.target.value })} /></div>
-                        <div className="form-group"><label>Rank</label><input type="number" min="1" value={newTest.rank} onChange={e => setNewTest({ ...newTest, rank: e.target.value })} /></div>
-                        <div className="form-group"><label>Total Students</label><input type="number" min="1" value={newTest.total_students} onChange={e => setNewTest({ ...newTest, total_students: e.target.value })} /></div>
-                        <div className="modal-actions">
-                            <button className="btn-secondary" onClick={() => setShowAddModal(false)}>Cancel</button>
-                            <button className="btn-primary" onClick={addNewTest}>Add Test</button>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-
-
-            {showRandomModal && (
-                <div className="modal active">
-                    <div className="modal-content">
-                        <h2>Pick a Random Test</h2>
-                        <div className="form-group">
-                            <label><input type="checkbox" checked={randomOptions.useCurrentFilters} onChange={e => setRandomOptions({ ...randomOptions, useCurrentFilters: e.target.checked })} /> Use current filters</label>
-                        </div>
-                        {!randomOptions.useCurrentFilters && (
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                                <div className="form-group"><label>Platform</label>
-                                    <select value={randomOptions.platform} onChange={e => setRandomOptions({ ...randomOptions, platform: e.target.value })}>
-                                        <option value="">Any</option>
+                            <div className="form-group">
+                                <label>Platform</label>
+                                <div style={{ display: 'flex', gap: 8 }}>
+                                    <select value={newTest.platform} onChange={e => setNewTest({ ...newTest, platform: e.target.value })}>
+                                        <option value="">Select Platform</option>
                                         {uniqueValues.platforms.map(p => <option key={p} value={p}>{p}</option>)}
                                     </select>
+                                    <button className="btn-secondary" style={{ padding: '8px 10px' }} onClick={() => setShowNewPlatformInput(v => !v)}>{showNewPlatformInput ? 'Cancel' : 'Add New'}</button>
                                 </div>
-                                <div className="form-group"><label>Subject</label>
-                                    <select value={randomOptions.subject} onChange={e => setRandomOptions({ ...randomOptions, subject: e.target.value })}>
-                                        <option value="">Any</option>
+                                {showNewPlatformInput && (
+                                    <div style={{ marginTop: 8 }}>
+                                        <input placeholder="New platform name" value={newTest.platformNew} onChange={e => setNewTest({ ...newTest, platformNew: e.target.value })} />
+                                    </div>
+                                )}
+                            </div>
+                            <div className="form-group">
+                                <label>Subject</label>
+                                <div style={{ display: 'flex', gap: 8 }}>
+                                    <select value={newTest.subject} onChange={e => setNewTest({ ...newTest, subject: e.target.value })}>
+                                        <option value="">Select Subject</option>
                                         {uniqueValues.subjects.map(s => <option key={s} value={s}>{s}</option>)}
                                     </select>
+                                    <button className="btn-secondary" style={{ padding: '8px 10px' }} onClick={() => setShowNewSubjectInput(v => !v)}>{showNewSubjectInput ? 'Cancel' : 'Add New'}</button>
                                 </div>
-                                <div className="form-group"><label>Type</label>
-                                    <select value={randomOptions.type} onChange={e => setRandomOptions({ ...randomOptions, type: e.target.value })}>
-                                        <option value="">Any</option>
+                                {showNewSubjectInput && (
+                                    <div style={{ marginTop: 8 }}>
+                                        <input placeholder="New subject" value={newTest.subjectNew} onChange={e => setNewTest({ ...newTest, subjectNew: e.target.value })} />
+                                    </div>
+                                )}
+                            </div>
+                            <div className="form-group">
+                                <label>Type</label>
+                                <div style={{ display: 'flex', gap: 8 }}>
+                                    <select value={newTest.type} onChange={e => setNewTest({ ...newTest, type: e.target.value })}>
+                                        <option value="">Select Type</option>
                                         {uniqueValues.types.map(t => <option key={t} value={t}>{t}</option>)}
                                     </select>
+                                    <button className="btn-secondary" style={{ padding: '8px 10px' }} onClick={() => setShowNewTypeInput(v => !v)}>{showNewTypeInput ? 'Cancel' : 'Add New'}</button>
                                 </div>
-                                <div className="form-group"><label>Status</label>
-                                    <select value={randomOptions.status} onChange={e => setRandomOptions({ ...randomOptions, status: e.target.value })}>
-                                        <option value="">Any</option>
-                                        {uniqueValues.statuses.map(s => <option key={s} value={s}>{s}</option>)}
-                                    </select>
-                                </div>
+                                {showNewTypeInput && (
+                                    <div style={{ marginTop: 8 }}>
+                                        <input placeholder="New type" value={newTest.typeNew} onChange={e => setNewTest({ ...newTest, typeNew: e.target.value })} />
+                                    </div>
+                                )}
                             </div>
-                        )}
-
-                        <div style={{ marginTop: 12 }}>
-                            <button className="btn-primary" onClick={performRandomPick}>Pick</button>
-                            <button className="btn-secondary" style={{ marginLeft: 8 }} onClick={() => { setShowRandomModal(false); setPickedRandom(null); }}>Close</button>
-                        </div>
-
-                        {pickedRandom && (
-                            <div style={{ marginTop: 12, background: 'var(--card)', padding: 12, borderRadius: 8 }}>
-                                <h3>{pickedRandom.name}</h3>
-                                <div><strong>Platform:</strong> {pickedRandom.platform}</div>
-                                <div><strong>Subject:</strong> {pickedRandom.subject}</div>
-                                <div style={{ marginTop: 8 }}>
-                                    <button className="btn-secondary" onClick={() => { openEditModal(pickedRandom); setShowRandomModal(false); }}>Open / Edit</button>
-                                    <button className="btn-primary" style={{ marginLeft: 8 }} onClick={() => { setTests(prev => prev.map(t => t.id === pickedRandom.id ? { ...t, status: 'Test Given', updatedAt: Date.now() } : t)); setShowRandomModal(false); }}>Mark as Given</button>
-                                </div>
+                            <div className="form-group"><label>Date</label><input type="date" value={newTest.date} onChange={e => setNewTest({ ...newTest, date: e.target.value })} /></div>
+                            <div className="form-group"><label>Questions</label><input type="number" value={newTest.questions} onChange={e => setNewTest({ ...newTest, questions: e.target.value })} /></div>
+                            <div className="form-group"><label>Marks</label><input type="number" value={newTest.marks} onChange={e => setNewTest({ ...newTest, marks: e.target.value })} /></div>
+                            <div className="form-group"><label>Time (minutes)</label><input type="number" value={newTest.time} onChange={e => setNewTest({ ...newTest, time: e.target.value })} /></div>
+                            <div className="form-group"><label>Remarks</label><textarea value={newTest.remarks} onChange={e => setNewTest({ ...newTest, remarks: e.target.value })} /></div>
+                            <div className="form-group"><label>Rank</label><input type="number" min="1" value={newTest.rank} onChange={e => setNewTest({ ...newTest, rank: e.target.value })} /></div>
+                            <div className="form-group"><label>Total Students</label><input type="number" min="1" value={newTest.total_students} onChange={e => setNewTest({ ...newTest, total_students: e.target.value })} /></div>
+                            <div className="modal-actions">
+                                <button className="btn-secondary" onClick={() => setShowAddModal(false)}>Cancel</button>
+                                <button className="btn-primary" onClick={addNewTest}>Add Test</button>
                             </div>
-                        )}
-                    </div>
-                </div>
-            )}
-
-            {showSyncModal && (
-                <div className="modal active">
-                    <div className="modal-content">
-                        <h2>Sync Configuration</h2>
-                        <p style={{ color: 'var(--muted)' }}>Paste your Firebase Web config below (create a Firebase project and enable Realtime Database if you want multi-device sync).</p>
-                        <div className="form-group"><label>apiKey</label><input value={firebaseForm.apiKey} onChange={e => setFirebaseForm({ ...firebaseForm, apiKey: e.target.value })} /></div>
-                        <div className="form-group"><label>authDomain</label><input value={firebaseForm.authDomain} onChange={e => setFirebaseForm({ ...firebaseForm, authDomain: e.target.value })} /></div>
-                        <div className="form-group"><label>databaseURL</label><input value={firebaseForm.databaseURL} onChange={e => setFirebaseForm({ ...firebaseForm, databaseURL: e.target.value })} /></div>
-                        <div className="form-group"><label>projectId</label><input value={firebaseForm.projectId} onChange={e => setFirebaseForm({ ...firebaseForm, projectId: e.target.value })} /></div>
-                        <div className="form-group"><label>appId</label><input value={firebaseForm.appId} onChange={e => setFirebaseForm({ ...firebaseForm, appId: e.target.value })} /></div>
-                        <div style={{ display: 'flex', gap: 12, marginTop: 12, flexWrap: 'wrap' }}>
-                            <button className="btn-secondary" onClick={() => setShowSyncModal(false)}>Close</button>
-                            <button className="btn-secondary" onClick={testFirebaseConnection}>Test Connection</button>
-                            <button className="btn-primary" onClick={saveSyncConfig}>Save Config</button>
-                            <button className="btn-primary" onClick={saveAndEnableSync}>Save & Enable Sync</button>
-                            <button className="btn-secondary" onClick={toggleSyncEnabled}>{settings.syncEnabled ? 'Disable Sync' : 'Enable Sync'}</button>
                         </div>
                     </div>
-                </div>
-            )}
+                )}
+
+
+
+                {showRandomModal && (
+                    <div className="modal active">
+                        <div className="modal-content">
+                            <h2>Pick a Random Test</h2>
+                            <div className="form-group">
+                                <label><input type="checkbox" checked={randomOptions.useCurrentFilters} onChange={e => setRandomOptions({ ...randomOptions, useCurrentFilters: e.target.checked })} /> Use current filters</label>
+                            </div>
+                            {!randomOptions.useCurrentFilters && (
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                                    <div className="form-group"><label>Platform</label>
+                                        <select value={randomOptions.platform} onChange={e => setRandomOptions({ ...randomOptions, platform: e.target.value })}>
+                                            <option value="">Any</option>
+                                            {uniqueValues.platforms.map(p => <option key={p} value={p}>{p}</option>)}
+                                        </select>
+                                    </div>
+                                    <div className="form-group"><label>Subject</label>
+                                        <select value={randomOptions.subject} onChange={e => setRandomOptions({ ...randomOptions, subject: e.target.value })}>
+                                            <option value="">Any</option>
+                                            {uniqueValues.subjects.map(s => <option key={s} value={s}>{s}</option>)}
+                                        </select>
+                                    </div>
+                                    <div className="form-group"><label>Type</label>
+                                        <select value={randomOptions.type} onChange={e => setRandomOptions({ ...randomOptions, type: e.target.value })}>
+                                            <option value="">Any</option>
+                                            {uniqueValues.types.map(t => <option key={t} value={t}>{t}</option>)}
+                                        </select>
+                                    </div>
+                                    <div className="form-group"><label>Status</label>
+                                        <select value={randomOptions.status} onChange={e => setRandomOptions({ ...randomOptions, status: e.target.value })}>
+                                            <option value="">Any</option>
+                                            {uniqueValues.statuses.map(s => <option key={s} value={s}>{s}</option>)}
+                                        </select>
+                                    </div>
+                                </div>
+                            )}
+
+                            <div style={{ marginTop: 12 }}>
+                                <button className="btn-primary" onClick={performRandomPick}>Pick</button>
+                                <button className="btn-secondary" style={{ marginLeft: 8 }} onClick={() => { setShowRandomModal(false); setPickedRandom(null); }}>Close</button>
+                            </div>
+
+                            {pickedRandom && (
+                                <div style={{ marginTop: 12, background: 'var(--card)', padding: 12, borderRadius: 8 }}>
+                                    <h3>{pickedRandom.name}</h3>
+                                    <div><strong>Platform:</strong> {pickedRandom.platform}</div>
+                                    <div><strong>Subject:</strong> {pickedRandom.subject}</div>
+                                    <div style={{ marginTop: 8 }}>
+                                        <button className="btn-secondary" onClick={() => { openEditModal(pickedRandom); setShowRandomModal(false); }}>Open / Edit</button>
+                                        <button className="btn-primary" style={{ marginLeft: 8 }} onClick={() => { setTests(prev => prev.map(t => t.id === pickedRandom.id ? { ...t, status: 'Test Given', updatedAt: Date.now() } : t)); setShowRandomModal(false); }}>Mark as Given</button>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
+
+                {showSyncModal && (
+                    <div className="modal active">
+                        <div className="modal-content">
+                            <h2>Sync Configuration</h2>
+                            <p style={{ color: 'var(--muted)' }}>Paste your Firebase Web config below (create a Firebase project and enable Realtime Database if you want multi-device sync).</p>
+                            <div className="form-group"><label>apiKey</label><input value={firebaseForm.apiKey} onChange={e => setFirebaseForm({ ...firebaseForm, apiKey: e.target.value })} /></div>
+                            <div className="form-group"><label>authDomain</label><input value={firebaseForm.authDomain} onChange={e => setFirebaseForm({ ...firebaseForm, authDomain: e.target.value })} /></div>
+                            <div className="form-group"><label>databaseURL</label><input value={firebaseForm.databaseURL} onChange={e => setFirebaseForm({ ...firebaseForm, databaseURL: e.target.value })} /></div>
+                            <div className="form-group"><label>projectId</label><input value={firebaseForm.projectId} onChange={e => setFirebaseForm({ ...firebaseForm, projectId: e.target.value })} /></div>
+                            <div className="form-group"><label>appId</label><input value={firebaseForm.appId} onChange={e => setFirebaseForm({ ...firebaseForm, appId: e.target.value })} /></div>
+                            <div style={{ display: 'flex', gap: 12, marginTop: 12, flexWrap: 'wrap' }}>
+                                <button className="btn-secondary" onClick={() => setShowSyncModal(false)}>Close</button>
+                                <button className="btn-secondary" onClick={testFirebaseConnection}>Test Connection</button>
+                                <button className="btn-primary" onClick={saveSyncConfig}>Save Config</button>
+                                <button className="btn-primary" onClick={saveAndEnableSync}>Save & Enable Sync</button>
+                                <button className="btn-secondary" onClick={toggleSyncEnabled}>{settings.syncEnabled ? 'Disable Sync' : 'Enable Sync'}</button>
+                            </div>
+                        </div>
+                    </div>
+                )}
         </div>
     );
 }
