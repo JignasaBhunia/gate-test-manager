@@ -34,7 +34,44 @@ function parseCSV(csv) {
     });
 }
 
+// Compute percentile for each test based on marks_obtained / marks (as percentage)
+function computePercentiles(arr) {
+    try {
+        const cloned = (arr || []).map(t => ({ ...t }));
+        // compute scores
+        const scored = cloned.map(t => {
+            const mGot = parseFloat(t.marks_obtained);
+            const mTot = parseFloat(t.marks);
+            let score = null;
+            if (!isNaN(mGot) && !isNaN(mTot) && mTot > 0) score = (mGot / mTot) * 100;
+            else if (!isNaN(mGot)) score = mGot;
+            return { ...t, __score: score };
+        });
+
+        const validScores = scored.filter(s => s.__score !== null).map(s => s.__score).sort((a, b) => a - b);
+        const n = validScores.length;
+        if (n === 0) return arr.map(t => ({ ...t, percentile: '' }));
+
+        return scored.map(s => {
+            if (s.__score === null) return { ...s, percentile: '' };
+            const below = validScores.filter(x => x < s.__score).length;
+            const equal = validScores.filter(x => x === s.__score).length;
+            const perc = ((below + 0.5 * equal) / n) * 100;
+            return { ...s, percentile: parseFloat(perc.toFixed(1)) };
+        }).map(t => {
+            // remove helper
+            const copy = { ...t };
+            delete copy.__score;
+            return copy;
+        });
+    } catch (e) {
+        console.warn('computePercentiles failed', e);
+        return arr;
+    }
+}
+
 function App() {
+    const MAX_COMPARE_USERS = 5; // only allow comparing up to this many users (free tier/support constraint)
     const [tests, setTests] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -72,12 +109,12 @@ function App() {
         // Load tests from localStorage first, fallback to CSV
         try {
             const raw = localStorage.getItem(STORAGE_KEY);
-            if (raw) {
-                const local = JSON.parse(raw);
-                setTests(local);
-                setLoading(false);
-                return;
-            }
+                if (raw) {
+                        const local = JSON.parse(raw);
+                        setTests(computePercentiles(local));
+                        setLoading(false);
+                        return;
+                    }
         } catch (e) {
             console.warn('Failed to read local storage', e);
         }
@@ -88,11 +125,11 @@ function App() {
                 if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
                 return response.text();
             })
-            .then(csv => {
-                const parsedTests = parseCSV(csv);
-                setTests(parsedTests);
-                setLoading(false);
-            })
+                    .then(csv => {
+                        const parsedTests = parseCSV(csv);
+                        setTests(computePercentiles(parsedTests));
+                        setLoading(false);
+                    })
             .catch(err => {
                 console.error('Error loading CSV:', err);
                 setError(err.message);
@@ -130,23 +167,23 @@ function App() {
 
             // Observe auth state
             firebase.auth().onAuthStateChanged(u => {
-                if (u) {
-                    setUser(u);
-                    firebaseRef.current = { uid: u.uid };
+                            if (u) {
+                            setUser(u);
+                            firebaseRef.current = { uid: u.uid };
                     // write basic public profile (opt-in)
                     try {
                         firebase.database().ref(`users/${u.uid}/profile`).update({ displayName: u.displayName || null, email: u.email || null, photoURL: u.photoURL || null, lastSeen: Date.now() });
                     } catch(e) { console.warn('profile write failed', e); }
 
                     // listen to user's tests
-                    const dbRef = firebase.database().ref(`users/${u.uid}/tests`);
-                    dbRef.on('value', snap => {
-                        const remote = snap.val();
-                        if (!remote) return;
-                        applyingRemote.current = true;
-                        setTests(remote);
-                        setTimeout(() => { applyingRemote.current = false; }, 300);
-                    });
+                            const dbRef = firebase.database().ref(`users/${u.uid}/tests`);
+                            dbRef.on('value', snap => {
+                                const remote = snap.val();
+                                if (!remote) return;
+                                applyingRemote.current = true;
+                                setTests(computePercentiles(remote));
+                                setTimeout(() => { applyingRemote.current = false; }, 300);
+                            });
                 } else {
                     setUser(null);
                     firebaseRef.current = null;
@@ -253,9 +290,9 @@ function App() {
     };
 
     const handleCellEdit = (testId, field, value) => {
-        setTests(prev => prev.map(test => 
+        setTests(prev => computePercentiles(prev.map(test => 
             test.id === testId ? { ...test, [field]: value } : test
-        ));
+        )));
         setEditingCell(null);
     };
 
@@ -265,7 +302,7 @@ function App() {
     };
 
     const saveEditedTest = () => {
-        setTests(prev => prev.map(test => test.id === editingTest.id ? { ...editingTest, updatedAt: Date.now() } : test));
+        setTests(prev => computePercentiles(prev.map(test => test.id === editingTest.id ? { ...editingTest, updatedAt: Date.now() } : test)));
         setShowEditModal(false);
         setEditingTest(null);
     };
@@ -289,14 +326,14 @@ function App() {
         if (testToAdd.platformNew) delete testToAdd.platformNew;
         if (testToAdd.subjectNew) delete testToAdd.subjectNew;
         if (testToAdd.typeNew) delete testToAdd.typeNew;
-        setTests(prev => [testToAdd, ...prev]);
+        setTests(prev => computePercentiles([testToAdd, ...prev]));
         setShowAddModal(false);
         setShowNewPlatformInput(false);
     };
 
     const deleteTest = (testId) => {
         if (!confirm('Delete this test? This cannot be undone.')) return;
-        setTests(prev => prev.filter(t => t.id !== testId));
+        setTests(prev => computePercentiles(prev.filter(t => t.id !== testId)));
     };
 
     // Theme & Sync helpers
@@ -335,7 +372,7 @@ function App() {
     const fetchOtherUsers = async () => {
         if (!window.firebase) return;
         try {
-            const snap = await firebase.database().ref('users').limitToFirst(200).once('value');
+            const snap = await firebase.database().ref('users').limitToFirst(10).once('value');
             const val = snap.val() || {};
             const arr = Object.keys(val).map(k => ({ uid: k, displayName: (val[k].profile && (val[k].profile.displayName || val[k].profile.email)) || k }));
             setOtherUsers(arr);
@@ -461,248 +498,44 @@ function App() {
         );
     }
 
+    const Header = window.AppComponents?.Header || (() => null);
+    const Table = window.AppComponents?.Table || (() => null);
+
     return (
         <div className="container">
-            <header style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
-                <div>
-                    <h1>GATE Test Manager</h1>
-                    <p className="subtitle">Track and analyze your GATE CSE 2026 preparation progress</p>
-                </div>
-                <div style={{display:'flex', gap:12, alignItems:'center'}}>
-                    <button className="btn-secondary" onClick={openAddModal}>➕ Add Test</button>
-                    <button className="btn-secondary" onClick={toggleDark}>{settings.dark ? '🌙 Dark' : '🌤 Light'}</button>
-                    <button className="btn-secondary" onClick={() => setShowSyncModal(true)} style={{background: settings.syncEnabled ? '#c6f6d5' : undefined}}>{settings.syncEnabled ? '🔁 Sync On' : '🔁 Sync'}</button>
-                    {user ? (
-                        <div style={{display:'flex', gap:8, alignItems:'center'}}>
-                            {user.photoURL && <img src={user.photoURL} alt="me" style={{width:28,height:28,borderRadius:14}} />}
-                            <span style={{fontWeight:600}}>{user.displayName || (user.email||'User')}</span>
-                            <button className="btn-secondary" onClick={() => { try { firebase.auth().signOut(); } catch(e){} }}>Sign out</button>
-                        </div>
-                    ) : (
-                        <button className="btn-primary" onClick={() => {
-                            if (!settings.firebaseConfig) { alert('Please configure Firebase in Sync settings first.'); setShowSyncModal(true); return; }
-                            try {
-                                const provider = new firebase.auth.GoogleAuthProvider();
-                                firebase.auth().signInWithPopup(provider).catch(err => alert('Sign-in failed: ' + err.message));
-                            } catch (e) { alert('Firebase not initialized. Open Sync settings to configure.'); setShowSyncModal(true); }
-                        }}>Sign in with Google</button>
-                    )}
-                </div>
-            </header>
+            <Header
+                openAddModal={openAddModal}
+                toggleDark={toggleDark}
+                settings={settings}
+                setShowSyncModal={setShowSyncModal}
+                user={user}
+                onSignIn={() => {
+                    if (!settings.firebaseConfig) { alert('Please configure Firebase in Sync settings first.'); setShowSyncModal(true); return; }
+                    try {
+                        const provider = new firebase.auth.GoogleAuthProvider();
+                        firebase.auth().signInWithPopup(provider).catch(err => alert('Sign-in failed: ' + err.message));
+                    } catch (e) { alert('Firebase not initialized. Open Sync settings to configure.'); setShowSyncModal(true); }
+                }}
+                onSignOut={() => { try { firebase.auth().signOut(); } catch(e){} }}
+            />
 
-            <div className="metrics-grid">
-                <div className="metric-card">
-                    <div className="metric-label">Total Tests</div>
-                    <div className="metric-value">{metrics.total}</div>
-                </div>
-                <div className="metric-card pending">
-                    <div className="metric-label">Pending</div>
-                    <div className="metric-value">{metrics.pending}</div>
-                </div>
-                <div className="metric-card completed">
-                    <div className="metric-label">Completed</div>
-                    <div className="metric-value">{metrics.completed}</div>
-                </div>
-                <div className="metric-card average">
-                    <div className="metric-label">Average Score</div>
-                    <div className="metric-value">{metrics.avgScore}</div>
-                </div>
-            </div>
-
-            <div className="controls">
-                <div className="filters">
-                    <div className="filter-group">
-                        <label>Platform</label>
-                        <select value={filters.platform} onChange={e => handleFilterChange('platform', e.target.value)}>
-                            <option value="">All Platforms</option>
-                            {uniqueValues.platforms.map(p => <option key={p} value={p}>{p}</option>)}
-                        </select>
-                    </div>
-                    <div className="filter-group">
-                        <label>Subject</label>
-                        <select value={filters.subject} onChange={e => handleFilterChange('subject', e.target.value)}>
-                            <option value="">All Subjects</option>
-                            {uniqueValues.subjects.map(s => <option key={s} value={s}>{s}</option>)}
-                        </select>
-                    </div>
-                    <div className="filter-group">
-                        <label>Type</label>
-                        <select value={filters.type} onChange={e => handleFilterChange('type', e.target.value)}>
-                            <option value="">All Types</option>
-                            {uniqueValues.types.map(t => <option key={t} value={t}>{t}</option>)}
-                        </select>
-                    </div>
-                    <div className="filter-group">
-                        <label>Status</label>
-                        <select value={filters.status} onChange={e => handleFilterChange('status', e.target.value)}>
-                            <option value="">All Status</option>
-                            {uniqueValues.statuses.map(s => <option key={s} value={s}>{s}</option>)}
-                        </select>
-                    </div>
-                    <div className="filter-group">
-                        <label>Search</label>
-                        <input 
-                            type="text" 
-                            placeholder="Search tests..." 
-                            value={filters.search}
-                            onChange={e => handleFilterChange('search', e.target.value)}
-                        />
-                    </div>
-                </div>
-                <div className="actions">
-                    <button className="btn-primary" onClick={pickRandomTest}>🎲 Pick Random Test</button>
-                    <button className="btn-primary" onClick={() => setShowAnalyticsModal(true)}>📊 Analytics</button>
-                    <button className="btn-secondary" onClick={downloadCSV}>📥 Download CSV</button>
-                    <button className="btn-secondary" onClick={clearFilters}>🔄 Clear Filters</button>
-                </div>
-            </div>
-
-            <div className="table-container">
-                {filteredTests.length === 0 ? (
-                    <div className="empty-state">
-                        <p>No tests found matching your filters</p>
-                    </div>
-                ) : (
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>ID</th>
-                                <th>Platform</th>
-                                <th>Test Name</th>
-                                <th>Subject</th>
-                                <th>Type</th>
-                                <th>Q</th>
-                                <th>Marks</th>
-                                <th>Time</th>
-                                <th>Status</th>
-                                <th>Obtained</th>
-                                <th>Potential</th>
-                                <th>Percentile</th>
-                                <th>Rank</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {filteredTests.map(test => (
-                                <tr key={test.id}>
-                                    <td>{test.id}</td>
-                                    <td className={`platform-${test.platform.toLowerCase().replace(/\s+/g, '-')}`}>
-                                        {test.platform}
-                                    </td>
-                                    <td>{test.name}</td>
-                                    <td>{test.subject}</td>
-                                    <td>
-                                        <span className={`badge badge-${test.type.toLowerCase()}`}>
-                                            {test.type}
-                                        </span>
-                                    </td>
-                                    <td>{test.questions}</td>
-                                    <td>{test.marks}</td>
-                                    <td>{test.time}m</td>
-                                    <td>
-                                        <select 
-                                            value={test.status}
-                                            onChange={e => updateTestStatus(test.id, e.target.value)}
-                                            style={{ 
-                                                padding: '6px 10px', 
-                                                borderRadius: '6px', 
-                                                border: '1px solid #e2e8f0',
-                                                fontSize: '12px',
-                                                fontWeight: '600',
-                                                cursor: 'pointer'
-                                            }}
-                                        >
-                                            <option value="Not Started">Not Started</option>
-                                            <option value="Pending">Pending</option>
-                                            <option value="Test Given">Test Given</option>
-                                            <option value="Analysis Pending">Analysis Pending</option>
-                                            <option value="Analysis Done">Analysis Done</option>
-                                            <option value="Completed">Completed</option>
-                                        </select>
-                                    </td>
-                                    <td 
-                                        className="editable-cell"
-                                        onClick={() => setEditingCell({ id: test.id, field: 'marks_obtained' })}
-                                    >
-                                        {editingCell?.id === test.id && editingCell?.field === 'marks_obtained' ? (
-                                            <input 
-                                                type="number" 
-                                                defaultValue={test.marks_obtained}
-                                                onBlur={e => handleCellEdit(test.id, 'marks_obtained', e.target.value)}
-                                                autoFocus
-                                            />
-                                        ) : (
-                                            test.marks_obtained || '-'
-                                        )}
-                                    </td>
-                                    <td 
-                                        className="editable-cell"
-                                        onClick={() => setEditingCell({ id: test.id, field: 'potential_marks' })}
-                                    >
-                                        {editingCell?.id === test.id && editingCell?.field === 'potential_marks' ? (
-                                            <input 
-                                                type="number" 
-                                                defaultValue={test.potential_marks}
-                                                onBlur={e => handleCellEdit(test.id, 'potential_marks', e.target.value)}
-                                                autoFocus
-                                            />
-                                        ) : (
-                                            test.potential_marks || '-'
-                                        )}
-                                    </td>
-                                    <td 
-                                        className="editable-cell"
-                                        onClick={() => setEditingCell({ id: test.id, field: 'percentile' })}
-                                    >
-                                        {editingCell?.id === test.id && editingCell?.field === 'percentile' ? (
-                                            <input 
-                                                type="number" 
-                                                step="0.1"
-                                                defaultValue={test.percentile}
-                                                onBlur={e => handleCellEdit(test.id, 'percentile', e.target.value)}
-                                                autoFocus
-                                            />
-                                        ) : (
-                                            test.percentile || '-'
-                                        )}
-                                    </td>
-                                    <td 
-                                        className="editable-cell"
-                                        onClick={() => setEditingCell({ id: test.id, field: 'rank' })}
-                                    >
-                                        {editingCell?.id === test.id && editingCell?.field === 'rank' ? (
-                                            <input 
-                                                type="text" 
-                                                defaultValue={test.rank}
-                                                onBlur={e => handleCellEdit(test.id, 'rank', e.target.value)}
-                                                autoFocus
-                                            />
-                                        ) : (
-                                            test.rank || '-'
-                                        )}
-                                    </td>
-                                    <td style={{ display: 'flex', gap: 8 }}>
-                                        <button 
-                                            className="btn-secondary" 
-                                            onClick={() => openEditModal(test)}
-                                            style={{ padding: '6px 12px', fontSize: '12px' }}
-                                        >
-                                            ✏️ Edit
-                                        </button>
-                                        <button
-                                            className="btn-secondary"
-                                            onClick={() => deleteTest(test.id)}
-                                            style={{ padding: '6px 12px', fontSize: '12px', background: '#fed7d7' }}
-                                        >
-                                            🗑 Delete
-                                        </button>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                )}
-            </div>
+            <Table
+                metrics={metrics}
+                filters={filters}
+                uniqueValues={uniqueValues}
+                handleFilterChange={handleFilterChange}
+                clearFilters={clearFilters}
+                pickRandomTest={pickRandomTest}
+                setShowAnalyticsModal={setShowAnalyticsModal}
+                downloadCSV={downloadCSV}
+                filteredTests={filteredTests}
+                editingCell={editingCell}
+                setEditingCell={setEditingCell}
+                handleCellEdit={handleCellEdit}
+                updateTestStatus={updateTestStatus}
+                openEditModal={openEditModal}
+                deleteTest={deleteTest}
+            />
 
             {showEditModal && (
                 <div className="modal active">
@@ -779,10 +612,6 @@ function App() {
                             />
                         </div>
                         <div className="form-group">
-                            <label>Percentile</label>
-                            <input type="number" step="0.1" value={editingTest.percentile || ''} onChange={e => setEditingTest({...editingTest, percentile: e.target.value})} />
-                        </div>
-                        <div className="form-group">
                             <label>Rank</label>
                             <input type="text" value={editingTest.rank || ''} onChange={e => setEditingTest({...editingTest, rank: e.target.value})} />
                         </div>
@@ -855,7 +684,6 @@ function App() {
                         <div className="form-group"><label>Marks</label><input type="number" value={newTest.marks} onChange={e => setNewTest({...newTest, marks: e.target.value})} /></div>
                         <div className="form-group"><label>Time (minutes)</label><input type="number" value={newTest.time} onChange={e => setNewTest({...newTest, time: e.target.value})} /></div>
                         <div className="form-group"><label>Remarks</label><textarea value={newTest.remarks} onChange={e => setNewTest({...newTest, remarks: e.target.value})} /></div>
-                        <div className="form-group"><label>Percentile</label><input type="number" step="0.1" value={newTest.percentile} onChange={e => setNewTest({...newTest, percentile: e.target.value})} /></div>
                         <div className="form-group"><label>Rank</label><input type="text" value={newTest.rank} onChange={e => setNewTest({...newTest, rank: e.target.value})} /></div>
                         <div className="modal-actions">
                             <button className="btn-secondary" onClick={() => setShowAddModal(false)}>Cancel</button>
@@ -874,7 +702,7 @@ function App() {
                             <div style={{flex:1}}>
                                 <label style={{display:'block', marginBottom:6}}>Compare with users</label>
                                 <div style={{display:'flex', gap:8, alignItems:'center'}}>
-                                    <select multiple style={{minHeight:80, width:'100%'}} value={selectedCompareUsers} onChange={e => setSelectedCompareUsers(Array.from(e.target.selectedOptions).map(o=>o.value))}>
+                                            <select multiple style={{minHeight:80, width:'100%'}} value={selectedCompareUsers} onChange={e => setSelectedCompareUsers(Array.from(e.target.selectedOptions).map(o=>o.value).slice(0, MAX_COMPARE_USERS))}>
                                         {otherUsers.map(u => <option key={u.uid} value={u.uid}>{u.displayName} ({u.uid.slice(0,6)})</option>)}
                                     </select>
                                 </div>
