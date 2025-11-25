@@ -8,14 +8,82 @@
 <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 <style>
-/* Removed dark mode related styles */
- /* Rest of CSS from previous UI goes here (omitted for brevity, it can be injected as before) */
+/* Dark mode styles disabled by commenting out, but kept for reference */
+/* body[data-theme='dark'] {
+  background: #121212;
+  color: #f7fafc;
+}
+body[data-theme='dark'] .container, body[data-theme='dark'] .controls, body[data-theme='dark'] .modal-content, body[data-theme='dark'] .table-container, body[data-theme='dark'] header, body[data-theme='dark'] .metrics-grid>div {
+  background: #21242a !important;
+  color: #e2e8f0;
+  box-shadow: 0 2px 8px rgba(50,50,60,0.13);
+}
+body[data-theme='dark'] select, body[data-theme='dark'] input, body[data-theme='dark'] textarea {
+  background: #1e2228;
+  color: #e2e8f0;
+  border-color: #374151;
+}
+body[data-theme='dark'] th, body[data-theme='dark'] td {
+  color: #e2e8f0;
+}
+body[data-theme='dark'] .btn-primary {
+  background: #2b6cb0;
+  color: #fff;
+}
+body[data-theme='dark'] .btn-secondary {
+  background: #23272f;
+  color: #eee;
+}
+body[data-theme='dark'] .badge-topic {
+  background: #2c5282;
+  color: #63b3ed;
+}
+body[data-theme='dark'] .badge-subject {
+  background: #22543d;
+  color: #68d391;
+}
+body[data-theme='dark'] .badge-full {
+  background: #7b341e;
+  color: #feb2b2;
+}
+body[data-theme='dark'] .badge-mock {
+  background: #44337a;
+  color: #d6bcfa;
+}
+body[data-theme='dark'] .platform-go-classes { color: #63b3ed; }
+body[data-theme='dark'] .platform-made-easy { color: #f6ad55; }
+body[data-theme='dark'] .platform-gate-at-zeal { color: #b794f4; }
+body[data-theme='dark'] .syllabus-cell { color: #cbd5e1; }
+body[data-theme='dark'] .empty-state { color: #a0aec0; }
+body[data-theme='dark'] .metric-value { color: #e2e8f0; }
+body[data-theme='dark'] .test-link { color: #63b3ed; }
+*/
+/* Rest of CSS from previous UI goes here (omitted for brevity, it can be injected as before) */
 </style>
-<!-- Removed dark mode toggle patch -->
+<script type="text/babel">
+// Patch: theme system
+function useDarkMode() {
+  const [dark, setDark] = React.useState(() => {
+    const saved = localStorage.getItem('theme');
+    return saved === 'dark';
+  });
+  React.useEffect(() => {
+    document.body.setAttribute('data-theme', dark ? 'dark' : 'light');
+    localStorage.setItem('theme', dark ? 'dark' : 'light');
+  }, [dark]);
+  return [dark, setDark];
+}
+// ...rest of App from the previous code, but:
+// - Add a header toggle for dark mode
+// - Add test add/delete
+// - Confirm delete before action
+// - Fix script includes for CDN and dev
+</script>
+<!-- Full App, Editable, Add/Delete test logic... goes here -->
 <body>
 <div id="root"></div>
 <script type="text/babel">
-// Full App, Editable, Add/Delete test logic goes here without dark mode
+// Full App, Editable, Add/Delete test logic goes here
 </script>
 </body>
 </html>
