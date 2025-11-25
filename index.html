@@ -1,306 +1,809 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>GATE Test Manager — Enhanced</title>
-  <style>
-    :root{--bg:#f6f9fb;--card:#fff;--muted:#6b7280;--brand:#0ea5a4}
-    *{box-sizing:border-box}
-    body{font-family:Inter,system-ui,Segoe UI,Roboto,Arial; margin:0; background:var(--bg); color:#0f172a}
-    .wrap{max-width:1100px;margin:28px auto;padding:20px}
-    header{display:flex;gap:16px;align-items:center}
-    h1{margin:0;font-size:20px}
-    .grid{display:grid;gap:12px}
-    .panel{background:var(--card);padding:14px;border-radius:10px;box-shadow:0 6px 18px rgba(2,6,23,0.06)}
-    form{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px}
-    input,select,textarea,button{padding:10px;border-radius:8px;border:1px solid #e6e9ef;font-size:14px}
-    button{background:var(--brand);color:#fff;border:none}
-    table{width:100%;border-collapse:collapse;font-size:13px}
-    th,td{padding:8px;border-bottom:1px solid #f1f5f9;text-align:left}
-    thead th{background:#f8fafc;font-weight:600;color:var(--muted)}
-    .controls{display:flex;gap:8px;flex-wrap:wrap}
-    .small{font-size:12px;color:var(--muted)}
-    .status-pending{color:#d97706;font-weight:bold;}
-    .status-completed{color:#059669;font-weight:bold;}
-    .highlight-row{background-color:#e0f7fa;}
-    .dark-mode body{background:#1a1a1a;color:#e7e9ee;}
-    .dark-mode .panel{background:#23272f;}
-    .dark-toggle{margin-left:auto;font-size:18px;cursor:pointer;}
-    @media(max-width:720px){thead{display:none}table,tbody,td,tr{display:block;width:100%}td{padding:10px;border-bottom:1px solid #eee}td:before{content:attr(data-label);display:block;font-weight:600;margin-bottom:6px}}
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GATE CSE 2026 Test Manager</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', sans-serif;
+            background: #f5f7fa;
+            color: #2d3748;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 24px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+
+        h1 {
+            font-size: 28px;
+            font-weight: 700;
+            color: #1a202c;
+            margin-bottom: 8px;
+        }
+
+        .subtitle {
+            color: #718096;
+            font-size: 14px;
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .metric-card {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            border-left: 4px solid #4299e1;
+        }
+
+        .metric-card.pending { border-left-color: #ed8936; }
+        .metric-card.completed { border-left-color: #48bb78; }
+        .metric-card.average { border-left-color: #9f7aea; }
+
+        .metric-label {
+            font-size: 13px;
+            color: #718096;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+        }
+
+        .metric-value {
+            font-size: 32px;
+            font-weight: 700;
+            color: #1a202c;
+        }
+
+        .controls {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 24px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+
+        .filters {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        label {
+            font-size: 12px;
+            font-weight: 600;
+            color: #4a5568;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+
+        select, input[type="text"], input[type="number"] {
+            padding: 10px 12px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 14px;
+            background: white;
+            color: #2d3748;
+            transition: all 0.2s;
+        }
+
+        select:focus, input[type="text"]:focus, input[type="number"]:focus {
+            outline: none;
+            border-color: #4299e1;
+            box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.1);
+        }
+
+        .actions {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: #4299e1;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #3182ce;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(66, 153, 225, 0.3);
+        }
+
+        .btn-secondary {
+            background: #edf2f7;
+            color: #4a5568;
+        }
+
+        .btn-secondary:hover {
+            background: #e2e8f0;
+        }
+
+        .table-container {
+            background: white;
+            border-radius: 12px;
+            overflow-x: auto;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        thead {
+            background: #f7fafc;
+            border-bottom: 2px solid #e2e8f0;
+        }
+
+        th {
+            padding: 14px 16px;
+            text-align: left;
+            font-size: 12px;
+            font-weight: 700;
+            color: #4a5568;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            white-space: nowrap;
+        }
+
+        td {
+            padding: 14px 16px;
+            border-bottom: 1px solid #f0f0f0;
+            font-size: 14px;
+        }
+
+        tbody tr {
+            transition: background 0.2s;
+        }
+
+        tbody tr:hover {
+            background: #f7fafc;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .badge-topic { background: #bee3f8; color: #2c5282; }
+        .badge-subject { background: #c6f6d5; color: #276749; }
+        .badge-full { background: #fed7d7; color: #9b2c2c; }
+        .badge-mock { background: #e9d8fd; color: #6b46c1; }
+
+        .editable-cell {
+            cursor: pointer;
+            position: relative;
+            min-width: 80px;
+        }
+
+        .editable-cell:hover {
+            background: #edf2f7;
+        }
+
+        .editable-cell input {
+            width: 100%;
+            padding: 6px;
+            border: 2px solid #4299e1;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .platform-go-classes { color: #4299e1; font-weight: 600; }
+        .platform-made-easy { color: #ed8936; font-weight: 600; }
+        .platform-gate-at-zeal { color: #9f7aea; font-weight: 600; }
+
+        .test-link {
+            color: #4299e1;
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .test-link:hover {
+            text-decoration: underline;
+        }
+
+        .syllabus-cell {
+            max-width: 300px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            cursor: help;
+        }
+
+        .syllabus-cell:hover {
+            white-space: normal;
+            overflow: visible;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #a0aec0;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal-content h2 {
+            margin-bottom: 20px;
+            color: #1a202c;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 6px;
+            font-weight: 600;
+            color: #4a5568;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+            margin-top: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .metrics-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .filters {
+                grid-template-columns: 1fr;
+            }
+
+            .actions {
+                flex-direction: column;
+            }
+
+            button {
+                width: 100%;
+            }
+
+            table {
+                font-size: 12px;
+            }
+
+            th, td {
+                padding: 10px 8px;
+            }
+        }
+    </style>
 </head>
 <body>
-  <div class="wrap">
-    <header>
-      <h1>🎯 GATE Test Manager — Enhanced</h1>
-      <button class="dark-toggle" onclick="toggleDarkMode()">🌚</button>
-      <div class="small" style="margin-left:10px">IDs: ME###, ZE###, GO### — dates left blank for you to fill when you take tests</div>
-    </header>
-    <div class="grid" style="grid-template-columns:1fr 320px;gap:16px;margin-top:16px">
-      <div class="panel">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-          <div><strong>Add / Edit Test</strong><div class="small">Add a test or edit selected row</div></div>
-          <div class="small">Storage: localStorage (persisted)</div>
-        </div>
-        <form id="testForm">
-          <input type="hidden" id="uid">
-          <div><label class="small">Test Name</label><input id="name" required></div>
-          <div><label class="small">Date (leave blank)</label><input id="date" type="date"></div>
-          <div><label class="small">Subject</label>
-            <select id="subject">
-              <option value="Discrete Mathematics">Discrete Mathematics</option>
-              <option value="Engineering Mathematics">Engineering Mathematics</option>
-              <option value="Digital Logic">Digital Logic</option>
-              <option value="DBMS">DBMS</option>
-              <option value="C Programming">C Programming</option>
-              <option value="TOC">TOC</option>
-              <option value="Computer Networks">Computer Networks</option>
-              <option value="Compiler Design">Compiler Design</option>
-              <option value="COA">COA</option>
-              <option value="Operating Systems">Operating Systems</option>
-              <option value="Data Structures">Data Structures</option>
-              <option value="Algorithms">Algorithms</option>
-              <option value="Aptitude">Aptitude</option>
-              <option value="Full Syllabus">Full Syllabus</option>
-              <option value="Combined">Combined</option>
-            </select>
-          </div>
-          <div>
-            <label class="small">Platform</label>
-            <select id="platform">
-              <option>GO Classes</option>
-              <option>Made Easy</option>
-              <option>Gate At Zeal</option>
-            </select>
-          </div>
-          <div><label class="small">Test Type</label>
-            <select id="type">
-              <option value="Topic">Topic</option>
-              <option value="Subject">Subject</option>
-              <option value="Full">Full</option>
-              <option value="Mock">Mock</option>
-              <option value="Combined">Combined</option>
-            </select>
-          </div>
-          <div><label class="small">Number of Questions</label><input id="questions" type="number"></div>
-          <div><label class="small">Total Marks</label><input id="marks" type="number"></div>
-          <div><label class="small">Time (min)</label><input id="time" type="number"></div>
-          <div><label class="small">Marks Obtained</label><input id="obtained" type="number"></div>
-          <div style="grid-column:1/-1"><label class="small">Remarks</label><textarea id="remarks" rows="2"></textarea></div>
-          <div style="grid-column:1/-1;display:flex;gap:8px">
-            <button id="saveBtn">Save</button>
-            <button type="button" id="pickRandom">Pick Random Pending</button>
-            <button type="button" id="exportCsv">Export CSV</button>
-            <button type="button" id="importCsv">Import CSV</button>
-            <button type="button" id="resetData">Reset</button>
-          </div>
-        </form>
-      </div>
-      <div class="panel">
-        <strong>Dashboard</strong>
-        <div class="small">Quick analytics and filters</div>
-        <canvas id="statsChart" width="300" height="200" style="margin-top:14px"></canvas>
-        <div style="margin-top:12px">
-          <div class="small">Platform</div>
-          <select id="filterPlatform"><option value="">All</option><option>GO Classes</option><option>Made Easy</option><option>Gate At Zeal</option></select>
-          <div class="small" style="margin-top:8px">Subject</div>
-          <select id="filterSubject"><option value="">All</option></select>
-          <div style="margin-top:8px" class="small">Status</div>
-          <select id="filterStatus"><option value="">All</option><option value="Not Started">Not Started</option><option value="Completed">Completed</option></select>
-        </div>
-        <div style="margin-top:12px">
-          <div class="small">Totals</div>
-          <div style="display:flex;gap:8px;margin-top:6px">
-            <div><div class="small">Total</div><div id="statTotal">0</div></div>
-            <div><div class="small">Pending</div><div id="statPending">0</div></div>
-            <div><div class="small">Completed</div><div id="statCompleted">0</div></div>
-            <div><div class="small">Avg Score</div><div id="statAvg">—</div></div>
-          </div>
-        </div>
-      </div>
-    </div>
-    <div class="panel" style="margin-top:14px">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-        <strong>Test List</strong>
-        <div class="controls small"><input id="search" placeholder="search name/subject" style="padding:8px;border-radius:8px;border:1px solid #eee"></div>
-      </div>
-      <div style="overflow:auto;max-height:420px">
-        <table id="testsTable">
-          <thead>
-            <tr><th>ID</th><th>Platform</th><th>Name</th><th>Date</th><th>Subject</th><th>Type</th><th>Q</th><th>Marks</th><th>Time</th><th>Score</th><th>Status</th></tr>
-          </thead>
-          <tbody></tbody>
-        </table>
-      </div>
-    </div>
-    <div class="panel small" style="margin-top:12px">
-      <strong>Resources (uploaded schedules)</strong>
-      <ul>
-        <li>/mnt/data/2758imguf_CS-2026-Schedule.pdf</li>
-        <li>/mnt/data/GateAtZeal 2026 Schedule.pdf</li>
-        <li>/mnt/data/GO Schedule 2026.pdf</li>
-        <li>/mnt/data/index.html</li>
-      </ul>
-      <div class="small" style="margin-top:8px">These are the raw PDFs you uploaded — dates in the app are left blank because activation dates ≠ when you take the test. Fill date when you actually attempt.</div>
-    </div>
-  </div>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-  <script>
-    // Utility: create unique IDs for seeds
-    function pad(n){return n.toString().padStart(3,'0')}
-    function uid(prefix,i){return prefix+pad(i)}
-    // Generate seed data (placeholders) for counts requested
-    const seeds = [];
-    for(let i=1;i<=48;i++){
-      seeds.push({id:uid('ME',i),platform:'Made Easy',name:`Made Easy Test ${i}`,date:'',subject:'',type:'Topic',questions:17,marks:25,time:45,obtained:'',remarks:'',status:'Not Started'});
-    }
-    for(let i=1;i<=80;i++){
-      seeds.push({id:uid('ZE',i),platform:'Gate At Zeal',name:`Zeal Test ${i}`,date:'',subject:'',type:'Topic',questions:17,marks:25,time:45,obtained:'',remarks:'',status:'Not Started'});
-    }
-    for(let i=1;i<=108;i++){
-      seeds.push({id:uid('GO',i),platform:'GO Classes',name:`GO Test ${i}`,date:'',subject:'',type:'Topic',questions:17,marks:25,time:60,obtained:'',remarks:'',status:'Not Started'});
-    }
-    const STORAGE_KEY = 'gate_tests_v2';
-    function load(){
-      const raw=localStorage.getItem(STORAGE_KEY);
-      if(raw){try{return JSON.parse(raw)}catch(e){console.warn('bad storage',e);}}
-      localStorage.setItem(STORAGE_KEY,JSON.stringify(seeds));
-      return JSON.parse(JSON.stringify(seeds));
-    }
-    let tests = load();
-    function populateSubjects(){
-      const ss = new Set(tests.map(t=>t.subject).filter(Boolean));
-      const sel = document.getElementById('filterSubject');
-      sel.innerHTML = '<option value="">All</option>' + [...ss].map(s=>`<option>${s}</option>`).join('');
-    }
-    function renderTable(filter){
-      filter = filter||{};
-      const tbody = document.querySelector('#testsTable tbody'); tbody.innerHTML='';
-      const q = document.getElementById('search').value.toLowerCase();
-      const rows = tests.filter(t=>{
-        if(filter.platform && t.platform!==filter.platform) return false;
-        if(filter.subject && t.subject!==filter.subject) return false;
-        if(filter.status && t.status!==filter.status) return false;
-        if(q && !(t.name.toLowerCase().includes(q)|| (t.subject||'').toLowerCase().includes(q))) return false;
-        return true;
-      });
-      rows.forEach(t=>{
-        const tr = document.createElement('tr');
-        tr.innerHTML = `<td>${t.id}</td><td>${t.platform}</td><td>${t.name}</td><td>${t.date||''}</td><td>${t.subject||''}</td><td>${t.type}</td><td>${t.questions}</td><td>${t.marks}</td><td>${t.time}</td><td>${t.obtained||''}</td>`+
-          `<td class="${t.obtained? 'status-completed':'status-pending'}">${t.status||'Not Started'}</td>`;
-        tr.onclick = ()=>loadIntoForm(t.id);
-        if(!t.obtained)tr.classList.add('highlight-row');
-        tbody.appendChild(tr);
-      });
-      document.getElementById('statTotal').innerText = tests.length;
-      document.getElementById('statPending').innerText = tests.filter(x=>!x.obtained).length;
-      document.getElementById('statCompleted').innerText = tests.filter(x=>x.obtained).length;
-      const avg = tests.filter(x=>x.obtained).map(x=>Number(x.obtained)).filter(n=>!isNaN(n));
-      document.getElementById('statAvg').innerText = avg.length? (Math.round((avg.reduce((a,b)=>a+b,0)/avg.length)*100)/100) : '—';
-      populateSubjects();
-      renderStatsChart();
-    }
-    function persist(){ localStorage.setItem(STORAGE_KEY,JSON.stringify(tests)); }
-    function loadIntoForm(id){
-      const t = tests.find(x=>x.id===id); if(!t) return;
-      document.getElementById('uid').value = t.id;
-      document.getElementById('name').value = t.name;
-      document.getElementById('date').value = t.date||'';
-      document.getElementById('subject').value = t.subject||'';
-      document.getElementById('platform').value = t.platform;
-      document.getElementById('type').value = t.type;
-      document.getElementById('questions').value = t.questions||'';
-      document.getElementById('marks').value = t.marks||'';
-      document.getElementById('time').value = t.time||'';
-      document.getElementById('obtained').value = t.obtained||'';
-      document.getElementById('remarks').value = t.remarks||'';
-      window.scrollTo({top:0,behavior:'smooth'});
-    }
-    document.getElementById('testForm').onsubmit = function(e){
-      e.preventDefault();
-      const id = document.getElementById('uid').value || generateNewId(document.getElementById('platform').value);
-      const entry = {
-        id:id,
-        platform:document.getElementById('platform').value,
-        name:document.getElementById('name').value,
-        date:document.getElementById('date').value || '',
-        subject:document.getElementById('subject').value,
-        type:document.getElementById('type').value,
-        questions:Number(document.getElementById('questions').value)||'',
-        marks:Number(document.getElementById('marks').value)||'',
-        time:Number(document.getElementById('time').value)||'',
-        obtained:document.getElementById('obtained').value||'',
-        remarks:document.getElementById('remarks').value||'',
-        status: document.getElementById('obtained').value? 'Completed':'Not Started'
-      };
-      const idx = tests.findIndex(x=>x.id===id);
-      if(idx>=0) tests[idx]=entry; else tests.unshift(entry);
-      persist(); renderTable(getFilters()); this.reset(); document.getElementById('uid').value='';
-    }
-    function generateNewId(platform){
-      const pref = platform.includes('Made')? 'ME' : platform.includes('Zeal')? 'ZE' : 'GO';
-      const nums = tests.filter(t=>t.id.startsWith(pref)).map(t=>parseInt(t.id.slice(2))).filter(Boolean);
-      const next = nums.length? Math.max(...nums)+1 : 1;
-      return pref + String(next).padStart(3,'0');
-    }
-    document.getElementById('search').addEventListener('input',()=>renderTable(getFilters()));
-    document.getElementById('filterPlatform').addEventListener('change',()=>renderTable(getFilters()));
-    document.getElementById('filterSubject').addEventListener('change',()=>renderTable(getFilters()));
-    document.getElementById('filterStatus').addEventListener('change',()=>renderTable(getFilters()));
-    function getFilters(){
-      return {platform:document.getElementById('filterPlatform').value, subject:document.getElementById('filterSubject').value, status:document.getElementById('filterStatus').value};
-    }
-    document.getElementById('pickRandom').onclick = function(){
-      const pending = tests.filter(t=>!t.obtained && (!document.getElementById('filterPlatform').value || t.platform===document.getElementById('filterPlatform').value) && (!document.getElementById('filterSubject').value || t.subject===document.getElementById('filterSubject').value));
-      if(!pending.length){alert('No pending tests match current filters');return}
-      const choice = pending[Math.floor(Math.random()*pending.length)];
-      loadIntoForm(choice.id);
-      alert('Picked: ' + choice.id + ' — ' + choice.name + '\nFill date and press Save when you attempt it.');
-    }
-    document.getElementById('exportCsv').onclick = function(){
-      const rows = tests; const keys = ['id','platform','name','date','subject','type','questions','marks','time','obtained','remarks','status'];
-      const csv = [keys.join(',')].concat(rows.map(r=>keys.map(k=>`"${(''+(r[k]||'')).replace(/"/g,'""')}"`).join(','))).join('\n');
-      const blob = new Blob([csv],{type:'text/csv'}); const url = URL.createObjectURL(blob);
-      const a = document.createElement('a'); a.href=url; a.download='gate_tests_backup.csv'; a.click(); URL.revokeObjectURL(url);
-    }
-    document.getElementById('importCsv').onclick = function(){
-      const inp = document.createElement('input'); inp.type='file'; inp.accept='.csv'; inp.onchange = e=>{
-        const f = e.target.files[0]; if(!f) return; const reader = new FileReader(); reader.onload = ev=>{
-          const txt = ev.target.result; parseCsvAndMerge(txt);
-        }; reader.readAsText(f);
-      }; inp.click();
-    }
-    function parseCsvAndMerge(txt){
-      const lines = txt.split('\n').map(l=>l.trim()).filter(Boolean); const headers = lines.shift().split(',').map(h=>h.replace(/"/g,'').trim());
-      const arr = lines.map(l=>{
-        const parts = l.match(/(?:"([^"]*)"|([^,]+))/g).map(s=>s.replace(/^"|"$/g,''));
-        const obj = {}; headers.forEach((h,i)=>obj[h]=parts[i]||''); return obj;
-      });
-      arr.forEach(a=>{ if(a.id){ const idx = tests.findIndex(t=>t.id===a.id); if(idx>=0) tests[idx]=Object.assign(tests[idx],a); else tests.push(a); }});
-      persist(); renderTable(getFilters()); alert('Imported '+arr.length+' records');
-    }
-    document.getElementById('resetData').onclick = function(){ if(confirm('Reset to initial seed data? This will overwrite local edits.')){ localStorage.removeItem(STORAGE_KEY); tests = load(); renderTable(); }}
-    function toggleDarkMode(){
-      document.documentElement.classList.toggle('dark-mode');
-    }
-    function renderStatsChart(){
-      if(!window.Chart)return;
-      const ctx=document.getElementById('statsChart').getContext('2d');
-      if(window.statsChart)window.statsChart.destroy();
-      const completed = tests.filter(x=>x.obtained).length;
-      const pending = tests.filter(x=>!x.obtained).length;
-      const avgObtained = (()=>{const arr=tests.filter(x=>x.obtained).map(x=>Number(x.obtained)).filter(n=>!isNaN(n)); return arr.length? arr.reduce((a,b)=>a+b,0)/arr.length:0;})();
-      window.statsChart = new Chart(ctx,{
-        type:'bar',
-        data:{
-          labels:['Completed','Pending','Avg Score'],
-          datasets:[{label:'Test Summary',data:[completed,pending,avgObtained],backgroundColor:['#059669','#d97706','#0ea5a4']}]
-        },
-        options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true}}}
-      });
-    }
-    renderTable();
-  </script>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useMemo } = React;
+
+        const GITHUB_CSV_URL = 'https://raw.githubusercontent.com/JignasaBhunia/gate-test-manager/feature/structured-test-dataset-ui/tests_seed.csv';
+
+        function parseCSV(csv) {
+            const lines = csv.trim().split('\n');
+            const headers = lines[0].split(',');
+            
+            return lines.slice(1).map(line => {
+                const values = [];
+                let current = '';
+                let inQuotes = false;
+                
+                for (let char of line) {
+                    if (char === '"') {
+                        inQuotes = !inQuotes;
+                    } else if (char === ',' && !inQuotes) {
+                        values.push(current.trim());
+                        current = '';
+                    } else {
+                        current += char;
+                    }
+                }
+                values.push(current.trim());
+                
+                const obj = {};
+                headers.forEach((header, i) => {
+                    obj[header.trim()] = values[i] || '';
+                });
+                return obj;
+            });
+        }
+
+        function App() {
+            const [tests, setTests] = useState([]);
+            const [filters, setFilters] = useState({
+                platform: '',
+                subject: '',
+                type: '',
+                status: '',
+                search: ''
+            });
+            const [editingCell, setEditingCell] = useState(null);
+            const [showEditModal, setShowEditModal] = useState(false);
+            const [editingTest, setEditingTest] = useState(null);
+
+            useEffect(() => {
+                fetch(GITHUB_CSV_URL)
+                    .then(response => response.text())
+                    .then(csv => {
+                        const parsedTests = parseCSV(csv);
+                        setTests(parsedTests);
+                    })
+                    .catch(error => {
+                        console.error('Error loading CSV:', error);
+                        alert('Failed to load test data from GitHub');
+                    });
+            }, []);
+
+            const filteredTests = useMemo(() => {
+                return tests.filter(test => {
+                    if (filters.platform && test.platform !== filters.platform) return false;
+                    if (filters.subject && test.subject !== filters.subject) return false;
+                    if (filters.type && test.type !== filters.type) return false;
+                    if (filters.status && test.status !== filters.status) return false;
+                    if (filters.search && !test.name.toLowerCase().includes(filters.search.toLowerCase())) return false;
+                    return true;
+                });
+            }, [tests, filters]);
+
+            const metrics = useMemo(() => {
+                const total = tests.length;
+                const completed = tests.filter(t => t.status === 'Completed').length;
+                const pending = tests.filter(t => t.status === 'Pending').length;
+                const notStarted = tests.filter(t => t.status === 'Not Started').length;
+                
+                const completedTests = tests.filter(t => t.marks_obtained);
+                const avgScore = completedTests.length > 0
+                    ? (completedTests.reduce((sum, t) => sum + (parseFloat(t.marks_obtained) || 0), 0) / completedTests.length).toFixed(1)
+                    : '—';
+
+                return { total, completed, pending: pending + notStarted, avgScore };
+            }, [tests]);
+
+            const uniqueValues = useMemo(() => ({
+                platforms: [...new Set(tests.map(t => t.platform))],
+                subjects: [...new Set(tests.map(t => t.subject))],
+                types: [...new Set(tests.map(t => t.type))],
+                statuses: [...new Set(tests.map(t => t.status))]
+            }), [tests]);
+
+            const handleFilterChange = (key, value) => {
+                setFilters(prev => ({ ...prev, [key]: value }));
+            };
+
+            const clearFilters = () => {
+                setFilters({ platform: '', subject: '', type: '', status: '', search: '' });
+            };
+
+            const pickRandomTest = () => {
+                const availableTests = tests.filter(t => t.status !== 'Completed');
+                if (availableTests.length === 0) {
+                    alert('No tests available!');
+                    return;
+                }
+                const random = availableTests[Math.floor(Math.random() * availableTests.length)];
+                alert(`Random Test: ${random.name}\nPlatform: ${random.platform}\nSubject: ${random.subject}\nType: ${random.type}\nQuestions: ${random.questions}\nMarks: ${random.marks}\nTime: ${random.time}m`);
+            };
+
+            const downloadCSV = () => {
+                const headers = ['id', 'platform', 'name', 'date', 'type', 'subject', 'questions', 'marks', 'time', 'syllabus', 'link', 'remarks', 'status', 'marks_obtained', 'potential_marks'];
+                const csvRows = [
+                    headers.join(','),
+                    ...tests.map(test => 
+                        headers.map(h => {
+                            const value = test[h] || '';
+                            return value.includes(',') || value.includes('"') ? `"${value.replace(/"/g, '""')}"` : value;
+                        }).join(',')
+                    )
+                ].join('\n');
+                
+                const blob = new Blob([csvRows], { type: 'text/csv;charset=utf-8;' });
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'gate_tests_updated.csv';
+                a.click();
+                window.URL.revokeObjectURL(url);
+            };
+
+            const updateTestStatus = (testId, newStatus) => {
+                setTests(prev => prev.map(test => 
+                    test.id === testId ? { ...test, status: newStatus } : test
+                ));
+            };
+
+            const handleCellEdit = (testId, field, value) => {
+                setTests(prev => prev.map(test => 
+                    test.id === testId ? { ...test, [field]: value } : test
+                ));
+                setEditingCell(null);
+            };
+
+            const openEditModal = (test) => {
+                setEditingTest({...test});
+                setShowEditModal(true);
+            };
+
+            const saveEditedTest = () => {
+                setTests(prev => prev.map(test => 
+                    test.id === editingTest.id ? editingTest : test
+                ));
+                setShowEditModal(false);
+                setEditingTest(null);
+            };
+
+            const getPlatformClass = (platform) => {
+                return 'platform-' + platform.toLowerCase().replace(/\s+/g, '-');
+            };
+
+            return (
+                <div className="container">
+                    <header>
+                        <h1>🎯 GATE CSE 2026 Test Manager</h1>
+                        <p className="subtitle">Complete test series from GO Classes, Made Easy, and Gate At Zeal</p>
+                    </header>
+
+                    <div className="metrics-grid">
+                        <div className="metric-card">
+                            <div className="metric-label">Total Tests</div>
+                            <div className="metric-value">{metrics.total}</div>
+                        </div>
+                        <div className="metric-card pending">
+                            <div className="metric-label">Pending</div>
+                            <div className="metric-value">{metrics.pending}</div>
+                        </div>
+                        <div className="metric-card completed">
+                            <div className="metric-label">Completed</div>
+                            <div className="metric-value">{metrics.completed}</div>
+                        </div>
+                        <div className="metric-card average">
+                            <div className="metric-label">Avg Score</div>
+                            <div className="metric-value">{metrics.avgScore}</div>
+                        </div>
+                    </div>
+
+                    <div className="controls">
+                        <div className="filters">
+                            <div className="filter-group">
+                                <label>Platform</label>
+                                <select value={filters.platform} onChange={e => handleFilterChange('platform', e.target.value)}>
+                                    <option value="">All Platforms</option>
+                                    {uniqueValues.platforms.map(p => <option key={p} value={p}>{p}</option>)}
+                                </select>
+                            </div>
+                            <div className="filter-group">
+                                <label>Subject</label>
+                                <select value={filters.subject} onChange={e => handleFilterChange('subject', e.target.value)}>
+                                    <option value="">All Subjects</option>
+                                    {uniqueValues.subjects.map(s => <option key={s} value={s}>{s}</option>)}
+                                </select>
+                            </div>
+                            <div className="filter-group">
+                                <label>Type</label>
+                                <select value={filters.type} onChange={e => handleFilterChange('type', e.target.value)}>
+                                    <option value="">All Types</option>
+                                    {uniqueValues.types.map(t => <option key={t} value={t}>{t}</option>)}
+                                </select>
+                            </div>
+                            <div className="filter-group">
+                                <label>Status</label>
+                                <select value={filters.status} onChange={e => handleFilterChange('status', e.target.value)}>
+                                    <option value="">All Status</option>
+                                    {uniqueValues.statuses.map(s => <option key={s} value={s}>{s}</option>)}
+                                </select>
+                            </div>
+                            <div className="filter-group">
+                                <label>Search</label>
+                                <input 
+                                    type="text" 
+                                    placeholder="Search tests..." 
+                                    value={filters.search}
+                                    onChange={e => handleFilterChange('search', e.target.value)}
+                                />
+                            </div>
+                        </div>
+                        <div className="actions">
+                            <button className="btn-primary" onClick={pickRandomTest}>🎲 Pick Random Test</button>
+                            <button className="btn-primary" onClick={() => alert('Analytics Dashboard - Track your progress with charts and insights!')}>📊 Analytics Dashboard</button>
+                            <button className="btn-secondary" onClick={downloadCSV}>📥 Download CSV</button>
+                            <button className="btn-secondary" onClick={clearFilters}>🔄 Clear Filters</button>
+                        </div>
+                    </div>
+
+                    <div className="table-container">
+                        {filteredTests.length === 0 ? (
+                            <div className="empty-state">
+                                <p>No tests found matching your filters</p>
+                            </div>
+                        ) : (
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Platform</th>
+                                        <th>Test Name</th>
+                                        <th>Date</th>
+                                        <th>Subject</th>
+                                        <th>Type</th>
+                                        <th>Q</th>
+                                        <th>Marks</th>
+                                        <th>Time</th>
+                                        <th>Syllabus</th>
+                                        <th>Status</th>
+                                        <th>Obtained</th>
+                                        <th>Potential</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {filteredTests.map(test => (
+                                        <tr key={test.id}>
+                                            <td>{test.id}</td>
+                                            <td className={getPlatformClass(test.platform)}>
+                                                {test.platform}
+                                            </td>
+                                            <td>
+                                                {test.link ? (
+                                                    <a href={test.link} className="test-link" target="_blank" rel="noopener noreferrer">
+                                                        {test.name}
+                                                    </a>
+                                                ) : test.name}
+                                            </td>
+                                            <td>{test.date || '—'}</td>
+                                            <td>{test.subject}</td>
+                                            <td>
+                                                <span className={`badge badge-${test.type.toLowerCase()}`}>
+                                                    {test.type}
+                                                </span>
+                                            </td>
+                                            <td>{test.questions}</td>
+                                            <td>{test.marks}</td>
+                                            <td>{test.time}m</td>
+                                            <td className="syllabus-cell" title={test.syllabus}>
+                                                {test.syllabus}
+                                            </td>
+                                            <td>
+                                                <select 
+                                                    value={test.status}
+                                                    onChange={e => updateTestStatus(test.id, e.target.value)}
+                                                    style={{ 
+                                                        padding: '6px 10px', 
+                                                        borderRadius: '6px', 
+                                                        border: '1px solid #e2e8f0',
+                                                        fontSize: '12px',
+                                                        fontWeight: '600',
+                                                        cursor: 'pointer'
+                                                    }}
+                                                >
+                                                    <option value="Not Started">Not Started</option>
+                                                    <option value="Pending">Pending</option>
+                                                    <option value="Completed">Completed</option>
+                                                </select>
+                                            </td>
+                                            <td 
+                                                className="editable-cell"
+                                                onClick={() => setEditingCell({ id: test.id, field: 'marks_obtained' })}
+                                            >
+                                                {editingCell?.id === test.id && editingCell?.field === 'marks_obtained' ? (
+                                                    <input 
+                                                        type="number" 
+                                                        defaultValue={test.marks_obtained}
+                                                        onBlur={e => handleCellEdit(test.id, 'marks_obtained', e.target.value)}
+                                                        onKeyPress={e => e.key === 'Enter' && e.target.blur()}
+                                                        autoFocus
+                                                    />
+                                                ) : (
+                                                    test.marks_obtained || '—'
+                                                )}
+                                            </td>
+                                            <td 
+                                                className="editable-cell"
+                                                onClick={() => setEditingCell({ id: test.id, field: 'potential_marks' })}
+                                            >
+                                                {editingCell?.id === test.id && editingCell?.field === 'potential_marks' ? (
+                                                    <input 
+                                                        type="number" 
+                                                        defaultValue={test.potential_marks}
+                                                        onBlur={e => handleCellEdit(test.id, 'potential_marks', e.target.value)}
+                                                        onKeyPress={e => e.key === 'Enter' && e.target.blur()}
+                                                        autoFocus
+                                                    />
+                                                ) : (
+                                                    test.potential_marks || '—'
+                                                )}
+                                            </td>
+                                            <td>
+                                                <button 
+                                                    className="btn-secondary" 
+                                                    onClick={() => openEditModal(test)}
+                                                    style={{ padding: '6px 12px', fontSize: '12px' }}
+                                                >
+                                                    ✏️ Edit
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        )}
+                    </div>
+
+                    {showEditModal && (
+                        <div className="modal active">
+                            <div className="modal-content">
+                                <h2>Edit Test Details</h2>
+                                <div className="form-group">
+                                    <label>Test Name</label>
+                                    <input 
+                                        type="text" 
+                                        value={editingTest.name}
+                                        onChange={e => setEditingTest({...editingTest, name: e.target.value})}
+                                    />
+                                </div>
+                                <div className="form-group">
+                                    <label>Date</label>
+                                    <input 
+                                        type="date" 
+                                        value={editingTest.date}
+                                        onChange={e => setEditingTest({...editingTest, date: e.target.value})}
+                                    />
+                                </div>
+                                <div className="form-group">
+                                    <label>Subject</label>
+                                    <input 
+                                        type="text" 
+                                        value={editingTest.subject}
+                                        onChange={e => setEditingTest({...editingTest, subject: e.target.value})}
+                                    />
+                                </div>
+                                <div className="form-group">
+                                    <label>Questions</label>
+                                    <input 
+                                        type="number" 
+                                        value={editingTest.questions}
+                                        onChange={e => setEditingTest({...editingTest, questions: e.target.value})}
+                                    />
+                                </div>
+                                <div className="form-group">
+                                    <label>Marks</label>
+                                    <input 
+                                        type="number" 
+                                        value={editingTest.marks}
+                                        onChange={e => setEditingTest({...editingTest, marks: e.target.value})}
+                                    />
+                                </div>
+                                <div className="form-group">
+                                    <label>Time (minutes)</label>
+                                    <input 
+                                        type="number" 
+                                        value={editingTest.time}
+                                        onChange={e => setEditingTest({...editingTest, time: e.target.value})}
+                                    />
+                                </div>
+                                <div className="form-group">
+                                    <label>Syllabus</label>
+                                    <textarea 
+                                        value={editingTest.syllabus}
+                                        onChange={e => setEditingTest({...editingTest, syllabus: e.target.value})}
+                                    />
+                                </div>
+                                <div className="form-group">
+                                    <label>Link</label>
+                                    <input 
+                                        type="url" 
+                                        value={editingTest.link}
+                                        onChange={e => setEditingTest({...editingTest, link: e.target.value})}
+                                    />
+                                </div>
+                                <div className="form-group">
+                                    <label>Remarks</label>
+                                    <textarea 
+                                        value={editingTest.remarks}
+                                        onChange={e => setEditingTest({...editingTest, remarks: e.target.value})}
+                                    />
+                                </div>
+                                <div className="modal-actions">
+                                    <button className="btn-secondary" onClick={() => setShowEditModal(false)}>
+                                        Cancel
+                                    </button>
+                                    <button className="btn-primary" onClick={saveEditedTest}>
+                                        Save Changes
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        }
+
+        ReactDOM.render(<App />, document.getElementById('root'));
+    </script>
 </body>
 </html>
