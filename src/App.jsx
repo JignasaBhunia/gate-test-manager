@@ -370,21 +370,111 @@ function App() {
         const updated = { ...settings, firebaseConfig: firebaseForm };
         setSettings(updated);
         try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(updated)); } catch (e) {}
-        alert('Firebase config saved. Now enable sync to start.');
+
+        // Try to initialize firebase immediately so user can sign in without reloading
+        if (window.firebase) {
+            try {
+                if (!firebase.apps.length) {
+                    // Attempt init with provided config
+                    firebase.initializeApp(firebaseForm);
+                }
+
+                // Optionally try a lightweight DB check if databaseURL provided
+                if (firebaseForm.databaseURL) {
+                    try {
+                        firebase.database().ref('.info/connected').once('value').then(() => {
+                            // connection probe succeeded
+                        }).catch(() => {});
+                    } catch (e) {}
+                }
+                alert('Firebase config saved and initialized. You can now enable sync and sign in.');
+            } catch (e) {
+                console.warn('Firebase init on save failed', e);
+                alert('Firebase config saved, but initialization failed. You can still enable sync and try signing in — check console for details.');
+            }
+        } else {
+            alert('Firebase config saved. SDK not loaded (check network).');
+        }
+
+        setShowSyncModal(false);
+    };
+
+    const testFirebaseConnection = async () => {
+        if (!window.firebase) {
+            alert('Firebase SDK not loaded (network issue).');
+            return;
+        }
+        try {
+            // attempt init in a safe way
+            if (!firebase.apps.length) firebase.initializeApp(firebaseForm);
+            // if databaseURL provided, try a light probe
+            if (firebaseForm.databaseURL) {
+                try {
+                    await firebase.database().ref('.info/connected').once('value');
+                    alert('Test OK: Realtime Database reachable (or reachable enough to read .info/connected).');
+                } catch (e) {
+                    console.warn('DB probe failed', e);
+                    alert('Initialization succeeded, but DB probe failed (check databaseURL & rules). See console for details.');
+                }
+            } else {
+                alert('Firebase initialized (no databaseURL provided). Authentication will work; Realtime Database features need databaseURL.');
+            }
+        } catch (e) {
+            console.warn('Firebase test failed', e);
+            alert('Firebase initialization failed. Check the config and console for details.');
+        }
+    };
+
+    const saveAndEnableSync = () => {
+        // Save config and immediately enable sync
+        const updated = { ...settings, firebaseConfig: firebaseForm, syncEnabled: true };
+        setSettings(updated);
+        try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(updated)); } catch (e) {}
+
+        if (window.firebase) {
+            try {
+                if (!firebase.apps.length) firebase.initializeApp(firebaseForm);
+                alert('Sync enabled and Firebase initialized. Please sign in to start syncing.');
+            } catch (e) {
+                console.warn('Failed to init firebase on save & enable', e);
+                alert('Saved settings but failed to initialize Firebase. Open Sync settings to retry.');
+            }
+        } else {
+            alert('Settings saved. Firebase SDK not loaded in this session. You can still sign in after reloading the page.');
+        }
+
         setShowSyncModal(false);
     };
 
     const toggleSyncEnabled = () => {
-        const updated = { ...settings, syncEnabled: !settings.syncEnabled };
+        const enabled = !settings.syncEnabled;
+        // If enabling but no firebaseConfig, prompt user to add
+        if (enabled && (!settings.firebaseConfig || !settings.firebaseConfig.apiKey)) {
+            setShowSyncModal(true);
+            return;
+        }
+
+        const updated = { ...settings, syncEnabled: enabled };
         setSettings(updated);
         try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(updated)); } catch (e) {}
-        if (!updated.syncEnabled) {
+
+        if (!enabled) {
             // disabling sync: detach listeners
             if (firebaseRef.current && window.firebase) {
-                try { firebase.database().ref(`gate_tests/${firebaseRef.current.uid}`).off(); } catch (e) {}
+                try { firebase.database().ref(`users/${firebaseRef.current.uid}/tests`).off(); } catch (e) {}
             }
+            alert('Sync disabled. Local data remains on this device.');
         } else {
-            if (!settings.firebaseConfig) setShowSyncModal(true);
+            // enabling: ensure firebase is initialized
+            if (window.firebase && settings.firebaseConfig) {
+                try {
+                    if (!firebase.apps.length) firebase.initializeApp(settings.firebaseConfig);
+                    alert('Sync enabled. If you are signed in, data will be pushed to your account.');
+                } catch (e) {
+                    console.warn('Firebase init when enabling sync failed', e);
+                    alert('Sync enabled in settings, but Firebase initialization failed. Open Sync settings to verify the config.');
+                }
+            }
         }
     };
 
@@ -933,9 +1023,11 @@ function App() {
                         <div className="form-group"><label>databaseURL</label><input value={firebaseForm.databaseURL} onChange={e => setFirebaseForm({...firebaseForm, databaseURL: e.target.value})} /></div>
                         <div className="form-group"><label>projectId</label><input value={firebaseForm.projectId} onChange={e => setFirebaseForm({...firebaseForm, projectId: e.target.value})} /></div>
                         <div className="form-group"><label>appId</label><input value={firebaseForm.appId} onChange={e => setFirebaseForm({...firebaseForm, appId: e.target.value})} /></div>
-                        <div style={{display:'flex', gap:12, marginTop:12}}>
+                        <div style={{display:'flex', gap:12, marginTop:12, flexWrap:'wrap'}}>
                             <button className="btn-secondary" onClick={() => setShowSyncModal(false)}>Close</button>
+                            <button className="btn-secondary" onClick={testFirebaseConnection}>Test Connection</button>
                             <button className="btn-primary" onClick={saveSyncConfig}>Save Config</button>
+                            <button className="btn-primary" onClick={saveAndEnableSync}>Save & Enable Sync</button>
                             <button className="btn-secondary" onClick={toggleSyncEnabled}>{settings.syncEnabled ? 'Disable Sync' : 'Enable Sync'}</button>
                         </div>
                     </div>
