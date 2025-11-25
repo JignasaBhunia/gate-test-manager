@@ -7,7 +7,28 @@
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <!-- Optional: Firebase (compat) for multi-device sync. Configure in-app to enable. -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
     <style>
+        :root {
+            --bg: #f5f7fa;
+            --card: #ffffff;
+            --text: #2d3748;
+            --muted: #718096;
+            --accent: #4299e1;
+            --surface-variant: #f7fafc;
+        }
+
+        body.dark {
+            --bg: #0f1724;
+            --card: #0b1220;
+            --text: #e6eef8;
+            --muted: #9fb3c8;
+            --accent: #60a5fa;
+            --surface-variant: #071023;
+        }
         * {
             margin: 0;
             padding: 0;
@@ -16,8 +37,8 @@
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', sans-serif;
-            background: #f5f7fa;
-            color: #2d3748;
+            background: var(--bg);
+            color: var(--text);
             line-height: 1.6;
         }
 
@@ -28,7 +49,7 @@
         }
 
         header {
-            background: white;
+            background: var(--card);
             padding: 20px;
             border-radius: 12px;
             margin-bottom: 24px;
@@ -55,7 +76,7 @@
         }
 
         .metric-card {
-            background: white;
+            background: var(--card);
             padding: 20px;
             border-radius: 12px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.08);
@@ -109,13 +130,13 @@
             letter-spacing: 0.3px;
         }
 
-        select, input[type="text"] {
+        select, input[type="text"], input[type="number"], input[type="date"], textarea {
             padding: 10px 12px;
             border: 1px solid #e2e8f0;
             border-radius: 8px;
             font-size: 14px;
-            background: white;
-            color: #2d3748;
+            background: var(--card);
+            color: var(--text);
             transition: all 0.2s;
         }
 
@@ -162,7 +183,7 @@
         }
 
         .table-container {
-            background: white;
+            background: var(--card);
             border-radius: 12px;
             overflow: hidden;
             box-shadow: 0 2px 8px rgba(0,0,0,0.08);
@@ -174,7 +195,7 @@
         }
 
         thead {
-            background: #f7fafc;
+            background: var(--surface-variant);
             border-bottom: 2px solid #e2e8f0;
         }
 
@@ -199,7 +220,7 @@
         }
 
         tbody tr:hover {
-            background: #f7fafc;
+            background: var(--surface-variant);
         }
 
         .badge {
@@ -271,7 +292,7 @@
         }
 
         .modal-content {
-            background: white;
+            background: var(--card);
             padding: 30px;
             border-radius: 12px;
             max-width: 500px;
@@ -348,10 +369,12 @@
     <div id="root"></div>
 
     <script type="text/babel">
-        const { useState, useEffect, useMemo } = React;
+        const { useState, useEffect, useMemo, useRef } = React;
 
         // Load CSV from GitHub - FIXED: pointing to main branch
         const GITHUB_CSV_URL = 'https://raw.githubusercontent.com/JignasaBhunia/gate-test-manager/main/tests_seed.csv';
+        const STORAGE_KEY = 'gate_tests_v1';
+        const SETTINGS_KEY = 'gate_tests_settings_v1';
 
         function parseCSV(csv) {
             const lines = csv.trim().split('\n');
@@ -386,40 +409,95 @@
             const [tests, setTests] = useState([]);
             const [loading, setLoading] = useState(true);
             const [error, setError] = useState(null);
-            const [filters, setFilters] = useState({
-                platform: '',
-                subject: '',
-                type: '',
-                status: '',
-                search: ''
-            });
+            const [filters, setFilters] = useState({ platform: '', subject: '', type: '', status: '', search: '' });
             const [editingCell, setEditingCell] = useState(null);
             const [showEditModal, setShowEditModal] = useState(false);
             const [editingTest, setEditingTest] = useState(null);
+            const [showAddModal, setShowAddModal] = useState(false);
+            const [newTest, setNewTest] = useState({ platform: '', name: '', date: '', type: '', subject: '', questions: '', marks: '', time: '', syllabus: '', link: '', remarks: '', status: 'Not Started', marks_obtained: '', potential_marks: '' });
+            const [settings, setSettings] = useState({ dark: false, syncEnabled: false, firebaseConfig: null });
+            const firebaseRef = useRef(null);
+            const applyingRemote = useRef(false);
 
             useEffect(() => {
-                // Load tests from GitHub CSV
+                // load settings
+                try {
+                    const raw = localStorage.getItem(SETTINGS_KEY);
+                    if (raw) setSettings(JSON.parse(raw));
+                } catch (e) { console.warn('Could not parse settings', e); }
+
+                // Load tests from localStorage first, fallback to CSV
+                try {
+                    const raw = localStorage.getItem(STORAGE_KEY);
+                    if (raw) {
+                        const local = JSON.parse(raw);
+                        setTests(local);
+                        setLoading(false);
+                        return;
+                    }
+                } catch (e) {
+                    console.warn('Failed to read local storage', e);
+                }
+
                 console.log('Loading CSV from:', GITHUB_CSV_URL);
                 fetch(GITHUB_CSV_URL)
                     .then(response => {
-                        if (!response.ok) {
-                            throw new Error(`HTTP error! status: ${response.status}`);
-                        }
+                        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
                         return response.text();
                     })
                     .then(csv => {
-                        console.log('CSV loaded, parsing...');
                         const parsedTests = parseCSV(csv);
-                        console.log('Parsed tests:', parsedTests.length);
                         setTests(parsedTests);
                         setLoading(false);
                     })
-                    .catch(error => {
-                        console.error('Error loading CSV:', error);
-                        setError(error.message);
+                    .catch(err => {
+                        console.error('Error loading CSV:', err);
+                        setError(err.message);
                         setLoading(false);
                     });
             }, []);
+
+            // Apply theme
+            useEffect(() => {
+                if (settings.dark) document.body.classList.add('dark'); else document.body.classList.remove('dark');
+            }, [settings.dark]);
+
+            // Persist tests locally and push to firebase when enabled
+            useEffect(() => {
+                try { localStorage.setItem(STORAGE_KEY, JSON.stringify(tests)); } catch (e) { console.warn('Could not save tests locally', e); }
+
+                if (settings.syncEnabled && firebaseRef.current && !applyingRemote.current) {
+                    try {
+                        const uid = firebaseRef.current.uid;
+                        firebase.database().ref(`gate_tests/${uid}`).set(tests);
+                    } catch (e) { console.warn('Sync push failed', e); }
+                }
+            }, [tests]);
+
+            // Setup firebase listener if enabled
+            useEffect(() => {
+                if (!settings.syncEnabled || !settings.firebaseConfig) return;
+                if (!window.firebase) {
+                    alert('Firebase SDK not loaded. Please check your connection.');
+                    return;
+                }
+
+                try {
+                    if (!firebase.apps.length) firebase.initializeApp(settings.firebaseConfig);
+                    firebase.auth().signInAnonymously().then(({ user }) => {
+                        firebaseRef.current = { uid: user.uid };
+                        const dbRef = firebase.database().ref(`gate_tests/${user.uid}`);
+                        dbRef.on('value', snap => {
+                            const remote = snap.val();
+                            if (!remote) return;
+                            // mark that we're applying remote to avoid write back loop
+                            applyingRemote.current = true;
+                            setTests(remote);
+                            setTimeout(() => { applyingRemote.current = false; }, 300);
+                        });
+                    }).catch(err => console.warn('Firebase auth failed', err));
+                } catch (e) { console.warn('Firebase init error', e); }
+            }, [settings.syncEnabled, settings.firebaseConfig]);
 
             const filteredTests = useMemo(() => {
                 return tests.filter(test => {
@@ -512,11 +590,58 @@
             };
 
             const saveEditedTest = () => {
-                setTests(prev => prev.map(test => 
-                    test.id === editingTest.id ? editingTest : test
-                ));
+                setTests(prev => prev.map(test => test.id === editingTest.id ? { ...editingTest, updatedAt: Date.now() } : test));
                 setShowEditModal(false);
                 setEditingTest(null);
+            };
+
+            // Add / Delete helpers
+            const openAddModal = () => {
+                setNewTest({ platform: '', name: '', date: '', type: '', subject: '', questions: '', marks: '', time: '', syllabus: '', link: '', remarks: '', status: 'Not Started', marks_obtained: '', potential_marks: '' });
+                setShowAddModal(true);
+            };
+
+            const addNewTest = () => {
+                const id = String(Date.now()) + '-' + Math.floor(Math.random()*1000);
+                setTests(prev => [{ ...newTest, id, updatedAt: Date.now() }, ...prev]);
+                setShowAddModal(false);
+            };
+
+            const deleteTest = (testId) => {
+                if (!confirm('Delete this test? This cannot be undone.')) return;
+                setTests(prev => prev.filter(t => t.id !== testId));
+            };
+
+            // Theme & Sync helpers
+            const toggleDark = () => {
+                const updated = { ...settings, dark: !settings.dark };
+                setSettings(updated);
+                try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(updated)); } catch (e) {}
+            };
+
+            const [showSyncModal, setShowSyncModal] = useState(false);
+            const [firebaseForm, setFirebaseForm] = useState(settings.firebaseConfig || { apiKey:'', authDomain:'', databaseURL:'', projectId:'', storageBucket:'', messagingSenderId:'', appId:'' });
+
+            const saveSyncConfig = () => {
+                const updated = { ...settings, firebaseConfig: firebaseForm };
+                setSettings(updated);
+                try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(updated)); } catch (e) {}
+                alert('Firebase config saved. Now enable sync to start.');
+                setShowSyncModal(false);
+            };
+
+            const toggleSyncEnabled = () => {
+                const updated = { ...settings, syncEnabled: !settings.syncEnabled };
+                setSettings(updated);
+                try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(updated)); } catch (e) {}
+                if (!updated.syncEnabled) {
+                    // disabling sync: detach listeners
+                    if (firebaseRef.current && window.firebase) {
+                        try { firebase.database().ref(`gate_tests/${firebaseRef.current.uid}`).off(); } catch (e) {}
+                    }
+                } else {
+                    if (!settings.firebaseConfig) setShowSyncModal(true);
+                }
             };
 
             if (loading) {
@@ -543,9 +668,16 @@
 
             return (
                 <div className="container">
-                    <header>
-                        <h1>GATE Test Manager</h1>
-                        <p className="subtitle">Track and analyze your GATE CSE 2026 preparation progress</p>
+                    <header style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+                        <div>
+                            <h1>GATE Test Manager</h1>
+                            <p className="subtitle">Track and analyze your GATE CSE 2026 preparation progress</p>
+                        </div>
+                        <div style={{display:'flex', gap:12, alignItems:'center'}}>
+                            <button className="btn-secondary" onClick={openAddModal}>➕ Add Test</button>
+                            <button className="btn-secondary" onClick={toggleDark}>{settings.dark ? '🌙 Dark' : '🌤 Light'}</button>
+                            <button className="btn-secondary" onClick={() => setShowSyncModal(true)} style={{background: settings.syncEnabled ? '#c6f6d5' : undefined}}>{settings.syncEnabled ? '🔁 Sync On' : '🔁 Sync'}</button>
+                        </div>
                     </header>
 
                     <div className="metrics-grid">
@@ -703,13 +835,20 @@
                                                     test.potential_marks || '-'
                                                 )}
                                             </td>
-                                            <td>
+                                            <td style={{ display: 'flex', gap: 8 }}>
                                                 <button 
                                                     className="btn-secondary" 
                                                     onClick={() => openEditModal(test)}
                                                     style={{ padding: '6px 12px', fontSize: '12px' }}
                                                 >
                                                     ✏️ Edit
+                                                </button>
+                                                <button
+                                                    className="btn-secondary"
+                                                    onClick={() => deleteTest(test.id)}
+                                                    style={{ padding: '6px 12px', fontSize: '12px', background: '#fed7d7' }}
+                                                >
+                                                    🗑 Delete
                                                 </button>
                                             </td>
                                         </tr>
@@ -800,6 +939,48 @@
                                     <button className="btn-primary" onClick={saveEditedTest}>
                                         Save Changes
                                     </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                    {showAddModal && (
+                        <div className="modal active">
+                            <div className="modal-content">
+                                <h2>Add New Test</h2>
+                                <div className="form-group">
+                                    <label>Test Name</label>
+                                    <input type="text" value={newTest.name} onChange={e => setNewTest({...newTest, name: e.target.value})} />
+                                </div>
+                                <div className="form-group"><label>Platform</label><input value={newTest.platform} onChange={e => setNewTest({...newTest, platform: e.target.value})} /></div>
+                                <div className="form-group"><label>Subject</label><input value={newTest.subject} onChange={e => setNewTest({...newTest, subject: e.target.value})} /></div>
+                                <div className="form-group"><label>Type</label><input value={newTest.type} onChange={e => setNewTest({...newTest, type: e.target.value})} /></div>
+                                <div className="form-group"><label>Date</label><input type="date" value={newTest.date} onChange={e => setNewTest({...newTest, date: e.target.value})} /></div>
+                                <div className="form-group"><label>Questions</label><input type="number" value={newTest.questions} onChange={e => setNewTest({...newTest, questions: e.target.value})} /></div>
+                                <div className="form-group"><label>Marks</label><input type="number" value={newTest.marks} onChange={e => setNewTest({...newTest, marks: e.target.value})} /></div>
+                                <div className="form-group"><label>Time (minutes)</label><input type="number" value={newTest.time} onChange={e => setNewTest({...newTest, time: e.target.value})} /></div>
+                                <div className="form-group"><label>Remarks</label><textarea value={newTest.remarks} onChange={e => setNewTest({...newTest, remarks: e.target.value})} /></div>
+                                <div className="modal-actions">
+                                    <button className="btn-secondary" onClick={() => setShowAddModal(false)}>Cancel</button>
+                                    <button className="btn-primary" onClick={addNewTest}>Add Test</button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {showSyncModal && (
+                        <div className="modal active">
+                            <div className="modal-content">
+                                <h2>Sync Configuration</h2>
+                                <p style={{color:'var(--muted)'}}>Paste your Firebase Web config below (create a Firebase project and enable Realtime Database if you want multi-device sync).</p>
+                                <div className="form-group"><label>apiKey</label><input value={firebaseForm.apiKey} onChange={e => setFirebaseForm({...firebaseForm, apiKey: e.target.value})} /></div>
+                                <div className="form-group"><label>authDomain</label><input value={firebaseForm.authDomain} onChange={e => setFirebaseForm({...firebaseForm, authDomain: e.target.value})} /></div>
+                                <div className="form-group"><label>databaseURL</label><input value={firebaseForm.databaseURL} onChange={e => setFirebaseForm({...firebaseForm, databaseURL: e.target.value})} /></div>
+                                <div className="form-group"><label>projectId</label><input value={firebaseForm.projectId} onChange={e => setFirebaseForm({...firebaseForm, projectId: e.target.value})} /></div>
+                                <div className="form-group"><label>appId</label><input value={firebaseForm.appId} onChange={e => setFirebaseForm({...firebaseForm, appId: e.target.value})} /></div>
+                                <div style={{display:'flex', gap:12, marginTop:12}}>
+                                    <button className="btn-secondary" onClick={() => setShowSyncModal(false)}>Close</button>
+                                    <button className="btn-primary" onClick={saveSyncConfig}>Save Config</button>
+                                    <button className="btn-secondary" onClick={toggleSyncEnabled}>{settings.syncEnabled ? 'Disable Sync' : 'Enable Sync'}</button>
                                 </div>
                             </div>
                         </div>
