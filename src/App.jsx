@@ -105,11 +105,7 @@ function App() {
     const [selectedCompareUsers, setSelectedCompareUsers] = useState([]);
     const firebaseRef = useRef(null);
     const applyingRemote = useRef(false);
-    const [showAnalyticsModal, setShowAnalyticsModal] = useState(false);
-    const analyticsRefs = useRef({ hist: null, pie: null, timeSeries: null });
-    const [analyticsSubjects, setAnalyticsSubjects] = useState([]);
-    const [analyticsAggregate, setAnalyticsAggregate] = useState('day'); // 'day' | 'week' | 'month'
-    const [analyticsCombineMode, setAnalyticsCombineMode] = useState('combine'); // 'combine' or 'multi'
+    const [currentView, setCurrentView] = useState('dashboard'); // 'dashboard' | 'analytics'
     const [showRandomModal, setShowRandomModal] = useState(false);
     const [pickedRandom, setPickedRandom] = useState(null);
     const [randomOptions, setRandomOptions] = useState({ platform: '', subject: '', type: '', status: '', useCurrentFilters: true });
@@ -117,7 +113,7 @@ function App() {
     const [showNewSubjectInput, setShowNewSubjectInput] = useState(false);
     const [showNewTypeInput, setShowNewTypeInput] = useState(false);
     const [csvBlobUrl, setCsvBlobUrl] = useState(null);
-    const analyticsCharts = useRef({});
+
 
     useEffect(() => {
         // load settings
@@ -229,14 +225,14 @@ function App() {
         const pendingStatuses = ['Pending', 'Not Started', 'Test Given', 'Analysis Pending'];
         const completed = tests.filter(t => completedStatuses.includes(t.status)).length;
         const pending = tests.filter(t => pendingStatuses.includes(t.status)).length;
-        const notStarted = tests.filter(t => t.status === 'Not Started').length;
+        // const notStarted = tests.filter(t => t.status === 'Not Started').length; // Removed: 'Not Started' is already in pendingStatuses
 
         const completedTests = tests.filter(t => t.marks_obtained !== undefined && t.marks_obtained !== null && t.marks_obtained !== '');
         const avgScore = completedTests.length > 0
             ? (completedTests.reduce((sum, t) => sum + (parseFloat(t.marks_obtained) || 0), 0) / completedTests.length).toFixed(1)
             : '0.0';
 
-        return { total, completed, pending: pending + notStarted, avgScore };
+        return { total, completed, pending, avgScore };
     }, [tests]);
 
     const uniqueValues = useMemo(() => ({
@@ -478,151 +474,7 @@ function App() {
         }
     };
 
-    // Fetch list of users (for comparison) - limited to first 10 for safety
-    const fetchOtherUsers = async () => {
-        if (!window.firebase) return;
-        try {
-            const snap = await firebase.database().ref('users').limitToFirst(10).once('value');
-            const val = snap.val() || {};
-            const arr = Object.keys(val).map(k => ({ uid: k, displayName: (val[k].profile && (val[k].profile.displayName || val[k].profile.email)) || k }));
-            setOtherUsers(arr);
-        } catch (e) { console.warn('Failed to fetch users', e); }
-    };
 
-    // Draw analytics charts (histogram and platform pie). If compare UIDs provided, fetch their tests and include as datasets.
-    const drawAnalyticsCharts = async () => {
-        try {
-            // prepare base dataset (current user's tests)
-            const makeScoreArray = (arr) => arr.map(t => {
-                const mGot = parseFloat(t.marks_obtained);
-                const mTot = parseFloat(t.marks);
-                if (!isNaN(mGot) && !isNaN(mTot) && mTot > 0) return (mGot / mTot) * 100;
-                if (!isNaN(mGot)) return mGot;
-                return null;
-            }).filter(v => v !== null && !isNaN(v));
-
-            const datasets = [];
-            const labels = [];
-
-            // helper to compute histogram buckets
-            const computeBuckets = (scores, bucketCount = 10) => {
-                if (!scores.length) return { labels: [], counts: [] };
-                const min = 0;
-                const max = 100;
-                const size = (max - min) / bucketCount;
-                const counts = Array(bucketCount).fill(0);
-                scores.forEach(s => {
-                    const idx = Math.min(bucketCount - 1, Math.floor((s - min) / size));
-                    if (idx >= 0 && idx < bucketCount) counts[idx]++;
-                });
-                const lab = counts.map((c, i) => `${Math.round(min + i * size)}-${Math.round(min + (i + 1) * size)}`);
-                return { labels: lab, counts };
-            };
-
-            // current (local) tests
-            const baseScores = makeScoreArray(tests);
-            const baseBuckets = computeBuckets(baseScores);
-            labels.push(...baseBuckets.labels);
-            datasets.push({ label: 'You', data: baseBuckets.counts, backgroundColor: 'rgba(66,153,225,0.6)' });
-
-            // fetch and add compare users datasets
-            for (let uid of selectedCompareUsers) {
-                try {
-                    const snap = await firebase.database().ref(`users/${uid}/tests`).once('value');
-                    const t = snap.val() || [];
-                    const scores = makeScoreArray(t);
-                    const buckets = computeBuckets(scores);
-                    datasets.push({ label: `User ${uid}`, data: buckets.counts, backgroundColor: `rgba(${Math.floor(Math.random() * 200)},${Math.floor(Math.random() * 200)},${Math.floor(Math.random() * 200)},0.6)` });
-                } catch (e) { console.warn('Failed fetch user tests', e); }
-            }
-
-            // Render histogram
-            try {
-                const ctx = document.getElementById('chartHistogram')?.getContext('2d');
-                if (ctx) {
-                    if (analyticsRefs.current.hist) analyticsRefs.current.hist.destroy();
-                    analyticsRefs.current.hist = new Chart(ctx, {
-                        type: 'bar',
-                        data: { labels: baseBuckets.labels, datasets },
-                        options: { responsive: true, plugins: { legend: { position: 'top' } }, scales: { y: { beginAtZero: true } } }
-                    });
-                }
-            } catch (e) { console.warn('Histogram render failed', e); }
-
-            // Platform pie chart
-            const platformCounts = {};
-            tests.forEach(t => { platformCounts[t.platform] = (platformCounts[t.platform] || 0) + 1; });
-            try {
-                const ctx2 = document.getElementById('chartPlatform')?.getContext('2d');
-                if (ctx2) {
-                    if (analyticsRefs.current.pie) analyticsRefs.current.pie.destroy();
-                    analyticsRefs.current.pie = new Chart(ctx2, {
-                        type: 'pie',
-                        data: { labels: Object.keys(platformCounts), datasets: [{ data: Object.values(platformCounts), backgroundColor: Object.keys(platformCounts).map((_, i) => `hsl(${i * 60},70%,60%)`) }] },
-                        options: { responsive: true }
-                    });
-                }
-            } catch (e) { console.warn('Platform pie render failed', e); }
-
-            // Time-series chart (percentMarks over time + marks-lost)
-            try {
-                const dateAgg = {};
-                tests.forEach(t => {
-                    if (analyticsSubject && analyticsSubject !== '' && t.subject !== analyticsSubject) return;
-                    if (!t.date) return;
-                    const d = new Date(t.date);
-                    if (isNaN(d)) return;
-                    const key = d.toISOString().slice(0, 10);
-                    const pm = parseFloat(t.percentMarks);
-                    const mGot = parseFloat(t.marks_obtained);
-                    const potential = (t.potential_marks !== undefined && t.potential_marks !== '') ? parseFloat(t.potential_marks) : parseFloat(t.marks);
-                    const marksLost = (!isNaN(potential) && !isNaN(mGot)) ? (potential - mGot) : null;
-                    if (!dateAgg[key]) dateAgg[key] = { count: 0, sumPm: 0, sumLost: 0, lostCount: 0 };
-                    if (!isNaN(pm)) { dateAgg[key].count++; dateAgg[key].sumPm += pm; }
-                    if (marksLost !== null && !isNaN(marksLost)) { dateAgg[key].sumLost += marksLost; dateAgg[key].lostCount++; }
-                });
-
-                const dates = Object.keys(dateAgg).sort();
-                const labelsTS = dates;
-                const dataPm = dates.map(d => dateAgg[d].count ? parseFloat((dateAgg[d].sumPm / dateAgg[d].count).toFixed(1)) : null);
-                const dataLost = dates.map(d => dateAgg[d].lostCount ? parseFloat((dateAgg[d].sumLost / dateAgg[d].lostCount).toFixed(1)) : null);
-
-                const ctx3 = document.getElementById('chartTimeSeries')?.getContext('2d');
-                if (ctx3) {
-                    if (analyticsRefs.current.timeSeries) analyticsRefs.current.timeSeries.destroy();
-                    analyticsRefs.current.timeSeries = new Chart(ctx3, {
-                        type: 'line',
-                        data: {
-                            labels: labelsTS,
-                            datasets: [
-                                { label: 'Percent Marks (avg)', data: dataPm, borderColor: 'rgba(66,153,225,0.9)', backgroundColor: 'rgba(66,153,225,0.2)', yAxisID: 'y' },
-                                { label: 'Marks Lost (avg)', data: dataLost, borderColor: 'rgba(229,62,62,0.9)', backgroundColor: 'rgba(229,62,62,0.2)', yAxisID: 'y2' }
-                            ]
-                        },
-                        options: {
-                            responsive: true,
-                            interaction: { mode: 'index', intersect: false },
-                            plugins: { legend: { position: 'top' } },
-                            scales: {
-                                x: { title: { display: true, text: 'Date' } },
-                                y: { type: 'linear', display: true, position: 'left', title: { display: true, text: 'Percent Marks (%)' }, beginAtZero: true, max: 100 },
-                                y2: { type: 'linear', display: true, position: 'right', title: { display: true, text: 'Marks Lost' }, beginAtZero: true, grid: { drawOnChartArea: false } }
-                            }
-                        }
-                    });
-                }
-            } catch (e) { console.warn('Time series render failed', e); }
-
-        } catch (e) { console.warn('drawAnalyticsCharts failed', e); }
-    };
-
-    useEffect(() => {
-        if (!showAnalyticsModal) return;
-        // ensure other users loaded
-        fetchOtherUsers();
-        // draw charts
-        drawAnalyticsCharts();
-    }, [showAnalyticsModal, tests, selectedCompareUsers, analyticsSubjects, analyticsAggregate, analyticsCombineMode]);
 
     const performRandomPick = () => {
         let pool = tests.slice();
@@ -664,6 +516,7 @@ function App() {
 
     const Header = window.AppComponents?.Header || (() => null);
     const Table = window.AppComponents?.Table || (() => null);
+    const Analytics = window.AppComponents?.Analytics || (() => null);
 
     return (
         <div className="container">
@@ -689,25 +542,30 @@ function App() {
                     } catch (e) { alert('Firebase not initialized. Open Sync settings to configure.'); setShowSyncModal(true); }
                 }}
                 onSignOut={() => { try { firebase.auth().signOut(); } catch (e) { } }}
+                currentView={currentView}
+                setCurrentView={setCurrentView}
             />
 
-            <Table
-                metrics={metrics}
-                filters={filters}
-                uniqueValues={uniqueValues}
-                handleFilterChange={handleFilterChange}
-                clearFilters={clearFilters}
-                pickRandomTest={pickRandomTest}
-                setShowAnalyticsModal={setShowAnalyticsModal}
-                downloadCSV={downloadCSV}
-                filteredTests={filteredTests}
-                editingCell={editingCell}
-                setEditingCell={setEditingCell}
-                handleCellEdit={handleCellEdit}
-                updateTestStatus={updateTestStatus}
-                openEditModal={openEditModal}
-                deleteTest={deleteTest}
-            />
+            {currentView === 'dashboard' ? (
+                <Table
+                    metrics={metrics}
+                    filters={filters}
+                    uniqueValues={uniqueValues}
+                    handleFilterChange={handleFilterChange}
+                    clearFilters={clearFilters}
+                    pickRandomTest={pickRandomTest}
+                    downloadCSV={downloadCSV}
+                    filteredTests={filteredTests}
+                    editingCell={editingCell}
+                    setEditingCell={setEditingCell}
+                    handleCellEdit={handleCellEdit}
+                    updateTestStatus={updateTestStatus}
+                    openEditModal={openEditModal}
+                    deleteTest={deleteTest}
+                />
+            ) : (
+                <Analytics tests={tests} user={user} otherUsers={otherUsers} />
+            )}
 
             {showEditModal && (
                 <div className="modal active">

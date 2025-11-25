@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -31,6 +32,7 @@
             --accent: #60a5fa;
             --surface-variant: #071023;
         }
+
         * {
             margin: 0;
             padding: 0;
@@ -55,7 +57,7 @@
             padding: 20px;
             border-radius: 12px;
             margin-bottom: 24px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
         }
 
         h1 {
@@ -81,13 +83,21 @@
             background: var(--card);
             padding: 20px;
             border-radius: 12px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
             border-left: 4px solid #4299e1;
         }
 
-        .metric-card.pending { border-left-color: #ed8936; }
-        .metric-card.completed { border-left-color: #48bb78; }
-        .metric-card.average { border-left-color: #9f7aea; }
+        .metric-card.pending {
+            border-left-color: #ed8936;
+        }
+
+        .metric-card.completed {
+            border-left-color: #48bb78;
+        }
+
+        .metric-card.average {
+            border-left-color: #9f7aea;
+        }
 
         .metric-label {
             font-size: 13px;
@@ -108,7 +118,7 @@
             padding: 20px;
             border-radius: 12px;
             margin-bottom: 24px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
         }
 
         .filters {
@@ -132,7 +142,11 @@
             letter-spacing: 0.3px;
         }
 
-        select, input[type="text"], input[type="number"], input[type="date"], textarea {
+        select,
+        input[type="text"],
+        input[type="number"],
+        input[type="date"],
+        textarea {
             padding: 10px 12px;
             border: 1px solid #e2e8f0;
             border-radius: 8px;
@@ -142,7 +156,8 @@
             transition: all 0.2s;
         }
 
-        select:focus, input[type="text"]:focus {
+        select:focus,
+        input[type="text"]:focus {
             outline: none;
             border-color: #4299e1;
             box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.1);
@@ -187,8 +202,8 @@
         .table-container {
             background: var(--card);
             border-radius: 12px;
-            overflow: hidden;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            overflow-x: auto;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
         }
 
         table {
@@ -233,14 +248,40 @@
             font-weight: 600;
         }
 
-        .badge-topic { background: #bee3f8; color: #2c5282; }
-        .badge-subject { background: #c6f6d5; color: #276749; }
-        .badge-full { background: #fed7d7; color: #9b2c2c; }
-        .badge-mock { background: #e9d8fd; color: #6b46c1; }
+        .badge-topic {
+            background: #bee3f8;
+            color: #2c5282;
+        }
 
-        .status-not-started { background: #fed7d7; color: #9b2c2c; }
-        .status-completed { background: #c6f6d5; color: #276749; }
-        .status-pending { background: #feebc8; color: #c05621; }
+        .badge-subject {
+            background: #c6f6d5;
+            color: #276749;
+        }
+
+        .badge-full {
+            background: #fed7d7;
+            color: #9b2c2c;
+        }
+
+        .badge-mock {
+            background: #e9d8fd;
+            color: #6b46c1;
+        }
+
+        .status-not-started {
+            background: #fed7d7;
+            color: #9b2c2c;
+        }
+
+        .status-completed {
+            background: #c6f6d5;
+            color: #276749;
+        }
+
+        .status-pending {
+            background: #feebc8;
+            color: #c05621;
+        }
 
         .editable-cell {
             cursor: pointer;
@@ -259,9 +300,20 @@
             font-size: 14px;
         }
 
-        .platform-go { color: #4299e1; font-weight: 600; }
-        .platform-me { color: #ed8936; font-weight: 600; }
-        .platform-zeal { color: #9f7aea; font-weight: 600; }
+        .platform-go {
+            color: #4299e1;
+            font-weight: 600;
+        }
+
+        .platform-me {
+            color: #ed8936;
+            font-weight: 600;
+        }
+
+        .platform-zeal {
+            color: #9f7aea;
+            font-weight: 600;
+        }
 
         .empty-state {
             text-align: center;
@@ -284,7 +336,7 @@
             top: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0,0,0,0.5);
+            background: rgba(0, 0, 0, 0.5);
             align-items: center;
             justify-content: center;
         }
@@ -361,21 +413,25 @@
                 font-size: 12px;
             }
 
-            th, td {
+            th,
+            td {
                 padding: 10px 8px;
             }
         }
     </style>
 </head>
+
 <body>
     <div id="root"></div>
 
     <script type="text/babel" src="src/components/Header.jsx"></script>
     <script type="text/babel" src="src/components/Table.jsx"></script>
+    <script type="text/babel" src="src/components/Analytics.jsx"></script>
     <script type="text/babel" src="src/App.jsx"></script>
     <script type="text/babel">
         // small bootstrap: App is exposed to window by src/App.jsx
         ReactDOM.render(<App />, document.getElementById('root'));
     </script>
 </body>
+
 </html>

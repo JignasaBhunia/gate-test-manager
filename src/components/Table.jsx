@@ -1,6 +1,6 @@
 window.AppComponents = window.AppComponents || {};
 window.AppComponents.Table = function Table(props) {
-    const { metrics, filters, uniqueValues, handleFilterChange, clearFilters, pickRandomTest, setShowAnalyticsModal, downloadCSV, filteredTests, editingCell, setEditingCell, handleCellEdit, updateTestStatus, openEditModal, deleteTest } = props;
+    const { metrics, filters, uniqueValues, handleFilterChange, clearFilters, pickRandomTest, downloadCSV, filteredTests, editingCell, setEditingCell, handleCellEdit, updateTestStatus, openEditModal, deleteTest } = props;
 
     return (
         <>
@@ -55,9 +55,9 @@ window.AppComponents.Table = function Table(props) {
                     </div>
                     <div className="filter-group">
                         <label>Search</label>
-                        <input 
-                            type="text" 
-                            placeholder="Search tests..." 
+                        <input
+                            type="text"
+                            placeholder="Search tests..."
                             value={filters.search}
                             onChange={e => handleFilterChange('search', e.target.value)}
                         />
@@ -65,7 +65,7 @@ window.AppComponents.Table = function Table(props) {
                 </div>
                 <div className="actions">
                     <button className="btn-primary" onClick={pickRandomTest}>🎲 Pick Random Test</button>
-                    <button className="btn-primary" onClick={() => setShowAnalyticsModal(true)}>📊 Analytics</button>
+
                     <button className="btn-secondary" onClick={downloadCSV}>📥 Download CSV</button>
                     <button className="btn-secondary" onClick={clearFilters}>🔄 Clear Filters</button>
                 </div>
@@ -100,21 +100,21 @@ window.AppComponents.Table = function Table(props) {
                         <tbody>
                             {filteredTests.map(test => (
                                 <tr key={test.id}>
-                                    <td style={{fontSize:12, color:'var(--muted)'}}>{String(test.id).slice(0,12)}</td>
+                                    <td style={{ fontSize: 12, color: 'var(--muted)' }}>{String(test.id).slice(0, 12)}</td>
                                     <td>{test.platform}</td>
-                                    <td style={{fontWeight:700}}>{test.name}</td>
+                                    <td style={{ fontWeight: 700 }}>{test.name}</td>
                                     <td>{test.subject}</td>
                                     <td>{test.type}</td>
                                     <td>{test.questions}</td>
                                     <td>{test.marks}</td>
                                     <td>{test.time}m</td>
                                     <td>
-                                        <select 
+                                        <select
                                             value={test.status}
                                             onChange={e => updateTestStatus(test.id, e.target.value)}
-                                            style={{ 
-                                                padding: '6px 10px', 
-                                                borderRadius: '6px', 
+                                            style={{
+                                                padding: '6px 10px',
+                                                borderRadius: '6px',
                                                 border: '1px solid #e2e8f0',
                                                 fontSize: '12px',
                                                 fontWeight: '600',
@@ -129,13 +129,13 @@ window.AppComponents.Table = function Table(props) {
                                             <option value="Completed">Completed</option>
                                         </select>
                                     </td>
-                                    <td 
+                                    <td
                                         className="editable-cell"
                                         onClick={() => setEditingCell({ id: test.id, field: 'marks_obtained' })}
                                     >
                                         {editingCell?.id === test.id && editingCell?.field === 'marks_obtained' ? (
-                                            <input 
-                                                type="number" 
+                                            <input
+                                                type="number"
                                                 defaultValue={test.marks_obtained}
                                                 onBlur={e => handleCellEdit(test.id, 'marks_obtained', e.target.value)}
                                                 autoFocus
@@ -144,13 +144,13 @@ window.AppComponents.Table = function Table(props) {
                                             test.marks_obtained || '-'
                                         )}
                                     </td>
-                                    <td 
+                                    <td
                                         className="editable-cell"
                                         onClick={() => setEditingCell({ id: test.id, field: 'potential_marks' })}
                                     >
                                         {editingCell?.id === test.id && editingCell?.field === 'potential_marks' ? (
-                                            <input 
-                                                type="number" 
+                                            <input
+                                                type="number"
                                                 defaultValue={test.potential_marks}
                                                 onBlur={e => handleCellEdit(test.id, 'potential_marks', e.target.value)}
                                                 autoFocus
@@ -165,13 +165,13 @@ window.AppComponents.Table = function Table(props) {
                                     <td>
                                         {test.percentile || '-'}
                                     </td>
-                                    <td 
+                                    <td
                                         className="editable-cell"
                                         onClick={() => setEditingCell({ id: test.id, field: 'rank' })}
                                     >
                                         {editingCell?.id === test.id && editingCell?.field === 'rank' ? (
-                                            <input 
-                                                type="text" 
+                                            <input
+                                                type="text"
                                                 defaultValue={test.rank}
                                                 onBlur={e => handleCellEdit(test.id, 'rank', e.target.value)}
                                                 autoFocus
@@ -181,8 +181,8 @@ window.AppComponents.Table = function Table(props) {
                                         )}
                                     </td>
                                     <td style={{ display: 'flex', gap: 8 }}>
-                                        <button 
-                                            className="btn-secondary" 
+                                        <button
+                                            className="btn-secondary"
                                             onClick={() => openEditModal(test)}
                                             style={{ padding: '6px 12px', fontSize: '12px' }}
                                         >
