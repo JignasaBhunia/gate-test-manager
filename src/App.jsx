@@ -8,12 +8,12 @@ const SETTINGS_KEY = 'gate_tests_settings_v1';
 function parseCSV(csv) {
     const lines = csv.trim().split('\n');
     const headers = lines[0].split(',');
-    
+
     return lines.slice(1).map(line => {
         const values = [];
         let current = '';
         let inQuotes = false;
-        
+
         for (let char of line) {
             if (char === '"') {
                 inQuotes = !inQuotes;
@@ -25,7 +25,7 @@ function parseCSV(csv) {
             }
         }
         values.push(current.trim());
-        
+
         const obj = {};
         headers.forEach((header, i) => {
             obj[header.trim()] = values[i] || '';
@@ -193,7 +193,7 @@ function App() {
                     // write basic public profile (opt-in)
                     try {
                         firebase.database().ref(`users/${u.uid}/profile`).update({ displayName: u.displayName || null, email: u.email || null, photoURL: u.photoURL || null, lastSeen: Date.now() });
-                    } catch(e) { console.warn('profile write failed', e); }
+                    } catch (e) { console.warn('profile write failed', e); }
 
                     // listen to user's tests
                     const dbRef = firebase.database().ref(`users/${u.uid}/tests`);
@@ -230,7 +230,7 @@ function App() {
         const completed = tests.filter(t => completedStatuses.includes(t.status)).length;
         const pending = tests.filter(t => pendingStatuses.includes(t.status)).length;
         const notStarted = tests.filter(t => t.status === 'Not Started').length;
-        
+
         const completedTests = tests.filter(t => t.marks_obtained !== undefined && t.marks_obtained !== null && t.marks_obtained !== '');
         const avgScore = completedTests.length > 0
             ? (completedTests.reduce((sum, t) => sum + (parseFloat(t.marks_obtained) || 0), 0) / completedTests.length).toFixed(1)
@@ -264,7 +264,7 @@ function App() {
         const headers = ['id', 'platform', 'name', 'date', 'type', 'subject', 'questions', 'marks', 'time', 'syllabus', 'link', 'remarks', 'status', 'marks_obtained', 'potential_marks', 'percentile', 'rank', 'updatedAt'];
         const csvRows = [
             headers.join(','),
-            ...tests.map(test => 
+            ...tests.map(test =>
                 headers.map(h => {
                     const value = (test[h] !== undefined && test[h] !== null) ? String(test[h]) : '';
                     // Escape values with commas or quotes
@@ -300,24 +300,24 @@ function App() {
             console.warn('Failed to update CSV blob', e);
         }
         // revoke previous when tests change handled by browser GC, but cleanup on unmount
-        return () => { try { if (csvBlobUrl) window.URL.revokeObjectURL(csvBlobUrl); } catch(e){} };
+        return () => { try { if (csvBlobUrl) window.URL.revokeObjectURL(csvBlobUrl); } catch (e) { } };
     }, [tests]);
 
     const updateTestStatus = (testId, newStatus) => {
-        setTests(prev => prev.map(test => 
+        setTests(prev => prev.map(test =>
             test.id === testId ? { ...test, status: newStatus } : test
         ));
     };
 
     const handleCellEdit = (testId, field, value) => {
-        setTests(prev => deriveMetrics(prev.map(test => 
+        setTests(prev => deriveMetrics(prev.map(test =>
             test.id === testId ? { ...test, [field]: value } : test
         )));
         setEditingCell(null);
     };
 
     const openEditModal = (test) => {
-        setEditingTest({...test});
+        setEditingTest({ ...test });
         setShowEditModal(true);
     };
 
@@ -337,7 +337,7 @@ function App() {
     };
 
     const addNewTest = () => {
-        const id = String(Date.now()) + '-' + Math.floor(Math.random()*1000);
+        const id = String(Date.now()) + '-' + Math.floor(Math.random() * 1000);
         const platform = (showNewPlatformInput && newTest.platformNew) ? newTest.platformNew : newTest.platform;
         const subject = (showNewSubjectInput && newTest.subjectNew) ? newTest.subjectNew : newTest.subject;
         const type = (showNewTypeInput && newTest.typeNew) ? newTest.typeNew : newTest.type;
@@ -360,16 +360,16 @@ function App() {
     const toggleDark = () => {
         const updated = { ...settings, dark: !settings.dark };
         setSettings(updated);
-        try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(updated)); } catch (e) {}
+        try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(updated)); } catch (e) { }
     };
 
     const [showSyncModal, setShowSyncModal] = useState(false);
-    const [firebaseForm, setFirebaseForm] = useState(settings.firebaseConfig || { apiKey:'', authDomain:'', databaseURL:'', projectId:'', storageBucket:'', messagingSenderId:'', appId:'' });
+    const [firebaseForm, setFirebaseForm] = useState(settings.firebaseConfig || { apiKey: '', authDomain: '', databaseURL: '', projectId: '', storageBucket: '', messagingSenderId: '', appId: '' });
 
     const saveSyncConfig = () => {
         const updated = { ...settings, firebaseConfig: firebaseForm };
         setSettings(updated);
-        try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(updated)); } catch (e) {}
+        try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(updated)); } catch (e) { }
 
         // Try to initialize firebase immediately so user can sign in without reloading
         if (window.firebase) {
@@ -384,8 +384,8 @@ function App() {
                     try {
                         firebase.database().ref('.info/connected').once('value').then(() => {
                             // connection probe succeeded
-                        }).catch(() => {});
-                    } catch (e) {}
+                        }).catch(() => { });
+                    } catch (e) { }
                 }
                 alert('Firebase config saved and initialized. You can now enable sync and sign in.');
             } catch (e) {
@@ -429,7 +429,7 @@ function App() {
         // Save config and immediately enable sync
         const updated = { ...settings, firebaseConfig: firebaseForm, syncEnabled: true };
         setSettings(updated);
-        try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(updated)); } catch (e) {}
+        try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(updated)); } catch (e) { }
 
         if (window.firebase) {
             try {
@@ -456,12 +456,12 @@ function App() {
 
         const updated = { ...settings, syncEnabled: enabled };
         setSettings(updated);
-        try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(updated)); } catch (e) {}
+        try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(updated)); } catch (e) { }
 
         if (!enabled) {
             // disabling sync: detach listeners
             if (firebaseRef.current && window.firebase) {
-                try { firebase.database().ref(`users/${firebaseRef.current.uid}/tests`).off(); } catch (e) {}
+                try { firebase.database().ref(`users/${firebaseRef.current.uid}/tests`).off(); } catch (e) { }
             }
             alert('Sync disabled. Local data remains on this device.');
         } else {
@@ -506,7 +506,7 @@ function App() {
 
             // helper to compute histogram buckets
             const computeBuckets = (scores, bucketCount = 10) => {
-                if (!scores.length) return {labels:[], counts:[]};
+                if (!scores.length) return { labels: [], counts: [] };
                 const min = 0;
                 const max = 100;
                 const size = (max - min) / bucketCount;
@@ -515,7 +515,7 @@ function App() {
                     const idx = Math.min(bucketCount - 1, Math.floor((s - min) / size));
                     if (idx >= 0 && idx < bucketCount) counts[idx]++;
                 });
-                const lab = counts.map((c,i) => `${Math.round(min + i*size)}-${Math.round(min + (i+1)*size)}`);
+                const lab = counts.map((c, i) => `${Math.round(min + i * size)}-${Math.round(min + (i + 1) * size)}`);
                 return { labels: lab, counts };
             };
 
@@ -532,7 +532,7 @@ function App() {
                     const t = snap.val() || [];
                     const scores = makeScoreArray(t);
                     const buckets = computeBuckets(scores);
-                    datasets.push({ label: `User ${uid}`, data: buckets.counts, backgroundColor: `rgba(${Math.floor(Math.random()*200)},${Math.floor(Math.random()*200)},${Math.floor(Math.random()*200)},0.6)` });
+                    datasets.push({ label: `User ${uid}`, data: buckets.counts, backgroundColor: `rgba(${Math.floor(Math.random() * 200)},${Math.floor(Math.random() * 200)},${Math.floor(Math.random() * 200)},0.6)` });
                 } catch (e) { console.warn('Failed fetch user tests', e); }
             }
 
@@ -558,7 +558,7 @@ function App() {
                     if (analyticsRefs.current.pie) analyticsRefs.current.pie.destroy();
                     analyticsRefs.current.pie = new Chart(ctx2, {
                         type: 'pie',
-                        data: { labels: Object.keys(platformCounts), datasets: [{ data: Object.values(platformCounts), backgroundColor: Object.keys(platformCounts).map((_,i)=>`hsl(${i*60},70%,60%)` ) }] },
+                        data: { labels: Object.keys(platformCounts), datasets: [{ data: Object.values(platformCounts), backgroundColor: Object.keys(platformCounts).map((_, i) => `hsl(${i * 60},70%,60%)`) }] },
                         options: { responsive: true }
                     });
                 }
@@ -572,12 +572,12 @@ function App() {
                     if (!t.date) return;
                     const d = new Date(t.date);
                     if (isNaN(d)) return;
-                    const key = d.toISOString().slice(0,10);
+                    const key = d.toISOString().slice(0, 10);
                     const pm = parseFloat(t.percentMarks);
                     const mGot = parseFloat(t.marks_obtained);
                     const potential = (t.potential_marks !== undefined && t.potential_marks !== '') ? parseFloat(t.potential_marks) : parseFloat(t.marks);
                     const marksLost = (!isNaN(potential) && !isNaN(mGot)) ? (potential - mGot) : null;
-                    if (!dateAgg[key]) dateAgg[key] = { count:0, sumPm:0, sumLost:0, lostCount:0 };
+                    if (!dateAgg[key]) dateAgg[key] = { count: 0, sumPm: 0, sumLost: 0, lostCount: 0 };
                     if (!isNaN(pm)) { dateAgg[key].count++; dateAgg[key].sumPm += pm; }
                     if (marksLost !== null && !isNaN(marksLost)) { dateAgg[key].sumLost += marksLost; dateAgg[key].lostCount++; }
                 });
@@ -600,18 +600,18 @@ function App() {
                             ]
                         },
                         options: {
-                            responsive:true,
-                            interaction: { mode:'index', intersect:false },
+                            responsive: true,
+                            interaction: { mode: 'index', intersect: false },
                             plugins: { legend: { position: 'top' } },
                             scales: {
                                 x: { title: { display: true, text: 'Date' } },
-                                y: { type:'linear', display:true, position:'left', title: { display:true, text:'Percent Marks (%)' }, beginAtZero:true, max:100 },
-                                y2: { type:'linear', display:true, position:'right', title: { display:true, text:'Marks Lost' }, beginAtZero:true, grid: { drawOnChartArea:false } }
+                                y: { type: 'linear', display: true, position: 'left', title: { display: true, text: 'Percent Marks (%)' }, beginAtZero: true, max: 100 },
+                                y2: { type: 'linear', display: true, position: 'right', title: { display: true, text: 'Marks Lost' }, beginAtZero: true, grid: { drawOnChartArea: false } }
                             }
                         }
                     });
                 }
-            } catch(e) { console.warn('Time series render failed', e); }
+            } catch (e) { console.warn('Time series render failed', e); }
 
         } catch (e) { console.warn('drawAnalyticsCharts failed', e); }
     };
@@ -677,10 +677,18 @@ function App() {
                     if (!settings.firebaseConfig) { alert('Please configure Firebase in Sync settings first.'); setShowSyncModal(true); return; }
                     try {
                         const provider = new firebase.auth.GoogleAuthProvider();
-                        firebase.auth().signInWithPopup(provider).catch(err => alert('Sign-in failed: ' + err.message));
+                        firebase.auth().signInWithPopup(provider).catch(err => {
+                            if (err.code === 'auth/configuration-not-found') {
+                                alert('Sign-in failed: Google Sign-In is not enabled in your Firebase Console.\n\nGo to Firebase Console > Authentication > Sign-in method, and enable "Google".');
+                            } else if (err.code === 'auth/unauthorized-domain') {
+                                alert('Sign-in failed: This domain is not authorized.\n\nGo to Firebase Console > Authentication > Settings > Authorized domains, and add this domain (e.g., localhost or your custom domain).');
+                            } else {
+                                alert('Sign-in failed: ' + err.message);
+                            }
+                        });
                     } catch (e) { alert('Firebase not initialized. Open Sync settings to configure.'); setShowSyncModal(true); }
                 }}
-                onSignOut={() => { try { firebase.auth().signOut(); } catch(e){} }}
+                onSignOut={() => { try { firebase.auth().signOut(); } catch (e) { } }}
             />
 
             <Table
@@ -707,81 +715,81 @@ function App() {
                         <h2>Edit Test Details</h2>
                         <div className="form-group">
                             <label>Test Name</label>
-                            <input 
-                                type="text" 
+                            <input
+                                type="text"
                                 value={editingTest.name}
-                                onChange={e => setEditingTest({...editingTest, name: e.target.value})}
+                                onChange={e => setEditingTest({ ...editingTest, name: e.target.value })}
                             />
                         </div>
                         <div className="form-group">
                             <label>Date</label>
-                            <input 
-                                type="date" 
+                            <input
+                                type="date"
                                 value={editingTest.date}
-                                onChange={e => setEditingTest({...editingTest, date: e.target.value})}
+                                onChange={e => setEditingTest({ ...editingTest, date: e.target.value })}
                             />
                         </div>
                         <div className="form-group">
                             <label>Subject</label>
-                            <input 
-                                type="text" 
+                            <input
+                                type="text"
                                 value={editingTest.subject}
-                                onChange={e => setEditingTest({...editingTest, subject: e.target.value})}
+                                onChange={e => setEditingTest({ ...editingTest, subject: e.target.value })}
                             />
                         </div>
                         <div className="form-group">
                             <label>Questions</label>
-                            <input 
-                                type="number" 
+                            <input
+                                type="number"
                                 value={editingTest.questions}
-                                onChange={e => setEditingTest({...editingTest, questions: e.target.value})}
+                                onChange={e => setEditingTest({ ...editingTest, questions: e.target.value })}
                             />
                         </div>
                         <div className="form-group">
                             <label>Marks</label>
-                            <input 
-                                type="number" 
+                            <input
+                                type="number"
                                 value={editingTest.marks}
-                                onChange={e => setEditingTest({...editingTest, marks: e.target.value})}
+                                onChange={e => setEditingTest({ ...editingTest, marks: e.target.value })}
                             />
                         </div>
                         <div className="form-group">
                             <label>Time (minutes)</label>
-                            <input 
-                                type="number" 
+                            <input
+                                type="number"
                                 value={editingTest.time}
-                                onChange={e => setEditingTest({...editingTest, time: e.target.value})}
+                                onChange={e => setEditingTest({ ...editingTest, time: e.target.value })}
                             />
                         </div>
                         <div className="form-group">
                             <label>Syllabus</label>
-                            <textarea 
+                            <textarea
                                 value={editingTest.syllabus}
-                                onChange={e => setEditingTest({...editingTest, syllabus: e.target.value})}
+                                onChange={e => setEditingTest({ ...editingTest, syllabus: e.target.value })}
                             />
                         </div>
                         <div className="form-group">
                             <label>Link</label>
-                            <input 
-                                type="url" 
+                            <input
+                                type="url"
                                 value={editingTest.link}
-                                onChange={e => setEditingTest({...editingTest, link: e.target.value})}
+                                onChange={e => setEditingTest({ ...editingTest, link: e.target.value })}
                             />
                         </div>
                         <div className="form-group">
                             <label>Remarks</label>
-                            <textarea 
+                            <textarea
                                 value={editingTest.remarks}
-                                onChange={e => setEditingTest({...editingTest, remarks: e.target.value})}
+                                onChange={e => setEditingTest({ ...editingTest, remarks: e.target.value })}
                             />
                         </div>
                         <div className="form-group">
                             <label>Rank</label>
-                            <input type="number" min="1" value={editingTest.rank || ''} onChange={e => setEditingTest({...editingTest, rank: e.target.value})} />
+                            <input type="number" min="1" value={editingTest.rank || ''} onChange={e => setEditingTest({ ...editingTest, rank: e.target.value })} />
                         </div>
                         <div className="form-group">
                             <label>Total Students</label>
-                            <input type="number" min="1" value={editingTest.total_students || editingTest.totalStudents || ''} onChange={e => setEditingTest({...editingTest, total_students: e.target.value})} />
+                            <input type="number" min="1" value={editingTest.total_students || editingTest.totalStudents || ''} onChange={e => setEditingTest({ ...editingTest, total_students: e.target.value })} />
                         </div>
                         <div className="modal-actions">
                             <button className="btn-secondary" onClick={() => setShowEditModal(false)}>
@@ -800,60 +808,60 @@ function App() {
                         <h2>Add New Test</h2>
                         <div className="form-group">
                             <label>Test Name</label>
-                            <input type="text" value={newTest.name} onChange={e => setNewTest({...newTest, name: e.target.value})} />
+                            <input type="text" value={newTest.name} onChange={e => setNewTest({ ...newTest, name: e.target.value })} />
                         </div>
                         <div className="form-group">
                             <label>Platform</label>
-                            <div style={{display:'flex', gap:8}}>
-                                <select value={newTest.platform} onChange={e => setNewTest({...newTest, platform: e.target.value})}>
+                            <div style={{ display: 'flex', gap: 8 }}>
+                                <select value={newTest.platform} onChange={e => setNewTest({ ...newTest, platform: e.target.value })}>
                                     <option value="">Select Platform</option>
                                     {uniqueValues.platforms.map(p => <option key={p} value={p}>{p}</option>)}
                                 </select>
-                                <button className="btn-secondary" style={{padding:'8px 10px'}} onClick={() => setShowNewPlatformInput(v => !v)}>{showNewPlatformInput ? 'Cancel' : 'Add New'}</button>
+                                <button className="btn-secondary" style={{ padding: '8px 10px' }} onClick={() => setShowNewPlatformInput(v => !v)}>{showNewPlatformInput ? 'Cancel' : 'Add New'}</button>
                             </div>
                             {showNewPlatformInput && (
-                                <div style={{marginTop:8}}>
-                                    <input placeholder="New platform name" value={newTest.platformNew} onChange={e => setNewTest({...newTest, platformNew: e.target.value})} />
+                                <div style={{ marginTop: 8 }}>
+                                    <input placeholder="New platform name" value={newTest.platformNew} onChange={e => setNewTest({ ...newTest, platformNew: e.target.value })} />
                                 </div>
                             )}
                         </div>
                         <div className="form-group">
                             <label>Subject</label>
-                            <div style={{display:'flex', gap:8}}>
-                                <select value={newTest.subject} onChange={e => setNewTest({...newTest, subject: e.target.value})}>
+                            <div style={{ display: 'flex', gap: 8 }}>
+                                <select value={newTest.subject} onChange={e => setNewTest({ ...newTest, subject: e.target.value })}>
                                     <option value="">Select Subject</option>
                                     {uniqueValues.subjects.map(s => <option key={s} value={s}>{s}</option>)}
                                 </select>
-                                <button className="btn-secondary" style={{padding:'8px 10px'}} onClick={() => setShowNewSubjectInput(v => !v)}>{showNewSubjectInput ? 'Cancel' : 'Add New'}</button>
+                                <button className="btn-secondary" style={{ padding: '8px 10px' }} onClick={() => setShowNewSubjectInput(v => !v)}>{showNewSubjectInput ? 'Cancel' : 'Add New'}</button>
                             </div>
                             {showNewSubjectInput && (
-                                <div style={{marginTop:8}}>
-                                    <input placeholder="New subject" value={newTest.subjectNew} onChange={e => setNewTest({...newTest, subjectNew: e.target.value})} />
+                                <div style={{ marginTop: 8 }}>
+                                    <input placeholder="New subject" value={newTest.subjectNew} onChange={e => setNewTest({ ...newTest, subjectNew: e.target.value })} />
                                 </div>
                             )}
                         </div>
                         <div className="form-group">
                             <label>Type</label>
-                            <div style={{display:'flex', gap:8}}>
-                                <select value={newTest.type} onChange={e => setNewTest({...newTest, type: e.target.value})}>
+                            <div style={{ display: 'flex', gap: 8 }}>
+                                <select value={newTest.type} onChange={e => setNewTest({ ...newTest, type: e.target.value })}>
                                     <option value="">Select Type</option>
                                     {uniqueValues.types.map(t => <option key={t} value={t}>{t}</option>)}
                                 </select>
-                                <button className="btn-secondary" style={{padding:'8px 10px'}} onClick={() => setShowNewTypeInput(v => !v)}>{showNewTypeInput ? 'Cancel' : 'Add New'}</button>
+                                <button className="btn-secondary" style={{ padding: '8px 10px' }} onClick={() => setShowNewTypeInput(v => !v)}>{showNewTypeInput ? 'Cancel' : 'Add New'}</button>
                             </div>
                             {showNewTypeInput && (
-                                <div style={{marginTop:8}}>
-                                    <input placeholder="New type" value={newTest.typeNew} onChange={e => setNewTest({...newTest, typeNew: e.target.value})} />
+                                <div style={{ marginTop: 8 }}>
+                                    <input placeholder="New type" value={newTest.typeNew} onChange={e => setNewTest({ ...newTest, typeNew: e.target.value })} />
                                 </div>
                             )}
                         </div>
-                        <div className="form-group"><label>Date</label><input type="date" value={newTest.date} onChange={e => setNewTest({...newTest, date: e.target.value})} /></div>
-                        <div className="form-group"><label>Questions</label><input type="number" value={newTest.questions} onChange={e => setNewTest({...newTest, questions: e.target.value})} /></div>
-                        <div className="form-group"><label>Marks</label><input type="number" value={newTest.marks} onChange={e => setNewTest({...newTest, marks: e.target.value})} /></div>
-                        <div className="form-group"><label>Time (minutes)</label><input type="number" value={newTest.time} onChange={e => setNewTest({...newTest, time: e.target.value})} /></div>
-                        <div className="form-group"><label>Remarks</label><textarea value={newTest.remarks} onChange={e => setNewTest({...newTest, remarks: e.target.value})} /></div>
-                        <div className="form-group"><label>Rank</label><input type="number" min="1" value={newTest.rank} onChange={e => setNewTest({...newTest, rank: e.target.value})} /></div>
-                        <div className="form-group"><label>Total Students</label><input type="number" min="1" value={newTest.total_students} onChange={e => setNewTest({...newTest, total_students: e.target.value})} /></div>
+                        <div className="form-group"><label>Date</label><input type="date" value={newTest.date} onChange={e => setNewTest({ ...newTest, date: e.target.value })} /></div>
+                        <div className="form-group"><label>Questions</label><input type="number" value={newTest.questions} onChange={e => setNewTest({ ...newTest, questions: e.target.value })} /></div>
+                        <div className="form-group"><label>Marks</label><input type="number" value={newTest.marks} onChange={e => setNewTest({ ...newTest, marks: e.target.value })} /></div>
+                        <div className="form-group"><label>Time (minutes)</label><input type="number" value={newTest.time} onChange={e => setNewTest({ ...newTest, time: e.target.value })} /></div>
+                        <div className="form-group"><label>Remarks</label><textarea value={newTest.remarks} onChange={e => setNewTest({ ...newTest, remarks: e.target.value })} /></div>
+                        <div className="form-group"><label>Rank</label><input type="number" min="1" value={newTest.rank} onChange={e => setNewTest({ ...newTest, rank: e.target.value })} /></div>
+                        <div className="form-group"><label>Total Students</label><input type="number" min="1" value={newTest.total_students} onChange={e => setNewTest({ ...newTest, total_students: e.target.value })} /></div>
                         <div className="modal-actions">
                             <button className="btn-secondary" onClick={() => setShowAddModal(false)}>Cancel</button>
                             <button className="btn-primary" onClick={addNewTest}>Add Test</button>
@@ -864,52 +872,52 @@ function App() {
 
             {showAnalyticsModal && (
                 <div className="modal active">
-                    <div className="modal-content" style={{maxWidth: '900px'}}>
+                    <div className="modal-content" style={{ maxWidth: '900px' }}>
                         <h2>Analytics Dashboard</h2>
-                        <p style={{color:'var(--muted)'}}>Score distribution and platform breakdown. You can compare with other users (requires Firebase users to be present).</p>
-                        <div style={{display:'flex', gap:12, marginBottom:12}}>
-                            <div style={{flex:1}}>
-                                <label style={{display:'block', marginBottom:6}}>Compare with users</label>
-                                <div style={{display:'flex', gap:8, alignItems:'center'}}>
-                                    <select multiple style={{minHeight:80, width:'100%'}} value={selectedCompareUsers} onChange={e => setSelectedCompareUsers(Array.from(e.target.selectedOptions).map(o=>o.value).slice(0, MAX_COMPARE_USERS))}>
-                                        {otherUsers.map(u => <option key={u.uid} value={u.uid}>{u.displayName} ({u.uid.slice(0,6)})</option>)}
+                        <p style={{ color: 'var(--muted)' }}>Score distribution and platform breakdown. You can compare with other users (requires Firebase users to be present).</p>
+                        <div style={{ display: 'flex', gap: 12, marginBottom: 12 }}>
+                            <div style={{ flex: 1 }}>
+                                <label style={{ display: 'block', marginBottom: 6 }}>Compare with users</label>
+                                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                                    <select multiple style={{ minHeight: 80, width: '100%' }} value={selectedCompareUsers} onChange={e => setSelectedCompareUsers(Array.from(e.target.selectedOptions).map(o => o.value).slice(0, MAX_COMPARE_USERS))}>
+                                        {otherUsers.map(u => <option key={u.uid} value={u.uid}>{u.displayName} ({u.uid.slice(0, 6)})</option>)}
                                     </select>
                                 </div>
-                                <div style={{marginTop:8}}>
+                                <div style={{ marginTop: 8 }}>
                                     <button className="btn-secondary" onClick={fetchOtherUsers}>Refresh Users</button>
                                 </div>
                             </div>
-                            <div style={{flex:1}}>
-                                <label style={{display:'block', marginBottom:6}}>Summary</label>
-                                <div style={{background:'var(--card)', padding:12, borderRadius:8}}>
+                            <div style={{ flex: 1 }}>
+                                <label style={{ display: 'block', marginBottom: 6 }}>Summary</label>
+                                <div style={{ background: 'var(--card)', padding: 12, borderRadius: 8 }}>
                                     <div><strong>Total tests:</strong> {tests.length}</div>
                                     <div><strong>Average score:</strong> {metrics.avgScore}%</div>
                                     <div><strong>Platforms:</strong> {uniqueValues.platforms.join(', ')}</div>
                                 </div>
                             </div>
-                            <div style={{width:320, display:'flex', gap:8, alignItems:'center'}}>
-                                <div style={{flex:1}}>
-                                    <label style={{display:'block', marginBottom:6}}>Subjects</label>
-                                    <select multiple value={analyticsSubjects} onChange={e => setAnalyticsSubjects(Array.from(e.target.selectedOptions).map(o=>o.value))} style={{minHeight:80, width:'100%'}}>
+                            <div style={{ width: 320, display: 'flex', gap: 8, alignItems: 'center' }}>
+                                <div style={{ flex: 1 }}>
+                                    <label style={{ display: 'block', marginBottom: 6 }}>Subjects</label>
+                                    <select multiple value={analyticsSubjects} onChange={e => setAnalyticsSubjects(Array.from(e.target.selectedOptions).map(o => o.value))} style={{ minHeight: 80, width: '100%' }}>
                                         {uniqueValues.subjects.map(s => <option key={s} value={s}>{s}</option>)}
                                     </select>
                                 </div>
-                                <div style={{width:140}}>
-                                    <label style={{display:'block', marginBottom:6}}>Mode</label>
+                                <div style={{ width: 140 }}>
+                                    <label style={{ display: 'block', marginBottom: 6 }}>Mode</label>
                                     <select value={analyticsCombineMode} onChange={e => setAnalyticsCombineMode(e.target.value)}>
                                         <option value="combine">Combine (avg)</option>
                                         <option value="multi">Multi-series</option>
                                     </select>
                                 </div>
-                                <div style={{width:120}}>
-                                    <label style={{display:'block', marginBottom:6}}>Aggregate</label>
+                                <div style={{ width: 120 }}>
+                                    <label style={{ display: 'block', marginBottom: 6 }}>Aggregate</label>
                                     <select value={analyticsAggregate} onChange={e => setAnalyticsAggregate(e.target.value)}>
                                         <option value="day">Day</option>
                                         <option value="week">Week</option>
                                         <option value="month">Month</option>
                                     </select>
                                 </div>
-                                <div style={{display:'flex', flexDirection:'column', gap:6}}>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                                     <button className="btn-secondary" onClick={() => {
                                         // export CSV of current time-series
                                         try {
@@ -917,13 +925,13 @@ function App() {
                                             if (!chart) { alert('No time-series chart available yet'); return; }
                                             const labels = chart.data.labels || [];
                                             const datasets = chart.data.datasets || [];
-                                            const rows = [ ['date', ...datasets.map(d=>d.label)] ];
-                                            for (let i=0;i<labels.length;i++) rows.push([labels[i], ...datasets.map(d=> (d.data[i]===null||d.data[i]===undefined)?'':d.data[i])]);
-                                            const csv = rows.map(r => r.map(c => (''+c).includes(',')?('"'+(''+c).replace(/"/g,'""')+'"'):(c||'')).join(',')).join('\n');
-                                            const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+                                            const rows = [['date', ...datasets.map(d => d.label)]];
+                                            for (let i = 0; i < labels.length; i++) rows.push([labels[i], ...datasets.map(d => (d.data[i] === null || d.data[i] === undefined) ? '' : d.data[i])]);
+                                            const csv = rows.map(r => r.map(c => ('' + c).includes(',') ? ('"' + ('' + c).replace(/"/g, '""') + '"') : (c || '')).join(',')).join('\n');
+                                            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
                                             const url = URL.createObjectURL(blob);
                                             const a = document.createElement('a'); a.href = url; a.download = 'analytics_timeseries.csv'; a.click(); URL.revokeObjectURL(url);
-                                        } catch(e){ alert('Export failed: '+e.message); }
+                                        } catch (e) { alert('Export failed: ' + e.message); }
                                     }}>Export CSV</button>
                                     <button className="btn-secondary" onClick={() => {
                                         try {
@@ -931,26 +939,26 @@ function App() {
                                             if (!chart) { alert('No time-series chart available yet'); return; }
                                             const url = chart.toBase64Image();
                                             const a = document.createElement('a'); a.href = url; a.download = 'analytics_timeseries.png'; a.click();
-                                        } catch(e){ alert('Export image failed: '+e.message); }
+                                        } catch (e) { alert('Export image failed: ' + e.message); }
                                     }}>Export PNG</button>
                                 </div>
                             </div>
                         </div>
 
-                        <div style={{display:'grid', gridTemplateColumns:'1fr 360px', gap:16}}>
-                            <div style={{background:'var(--card)', padding:12, borderRadius:8}}>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 360px', gap: 16 }}>
+                            <div style={{ background: 'var(--card)', padding: 12, borderRadius: 8 }}>
                                 <canvas id="chartHistogram" width="800" height="300" />
                             </div>
-                            <div style={{background:'var(--card)', padding:12, borderRadius:8}}>
+                            <div style={{ background: 'var(--card)', padding: 12, borderRadius: 8 }}>
                                 <canvas id="chartPlatform" width="300" height="300" />
                             </div>
                         </div>
 
-                        <div style={{background:'var(--card)', padding:12, borderRadius:8, marginTop:12}}>
+                        <div style={{ background: 'var(--card)', padding: 12, borderRadius: 8, marginTop: 12 }}>
                             <canvas id="chartTimeSeries" width="1000" height="280" />
                         </div>
 
-                        <div className="modal-actions" style={{marginTop:16}}>
+                        <div className="modal-actions" style={{ marginTop: 16 }}>
                             <button className="btn-secondary" onClick={() => setShowAnalyticsModal(false)}>Close</button>
                         </div>
                     </div>
@@ -962,30 +970,30 @@ function App() {
                     <div className="modal-content">
                         <h2>Pick a Random Test</h2>
                         <div className="form-group">
-                            <label><input type="checkbox" checked={randomOptions.useCurrentFilters} onChange={e => setRandomOptions({...randomOptions, useCurrentFilters: e.target.checked})} /> Use current filters</label>
+                            <label><input type="checkbox" checked={randomOptions.useCurrentFilters} onChange={e => setRandomOptions({ ...randomOptions, useCurrentFilters: e.target.checked })} /> Use current filters</label>
                         </div>
                         {!randomOptions.useCurrentFilters && (
-                            <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:8}}>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                                 <div className="form-group"><label>Platform</label>
-                                    <select value={randomOptions.platform} onChange={e => setRandomOptions({...randomOptions, platform: e.target.value})}>
+                                    <select value={randomOptions.platform} onChange={e => setRandomOptions({ ...randomOptions, platform: e.target.value })}>
                                         <option value="">Any</option>
                                         {uniqueValues.platforms.map(p => <option key={p} value={p}>{p}</option>)}
                                     </select>
                                 </div>
                                 <div className="form-group"><label>Subject</label>
-                                    <select value={randomOptions.subject} onChange={e => setRandomOptions({...randomOptions, subject: e.target.value})}>
+                                    <select value={randomOptions.subject} onChange={e => setRandomOptions({ ...randomOptions, subject: e.target.value })}>
                                         <option value="">Any</option>
                                         {uniqueValues.subjects.map(s => <option key={s} value={s}>{s}</option>)}
                                     </select>
                                 </div>
                                 <div className="form-group"><label>Type</label>
-                                    <select value={randomOptions.type} onChange={e => setRandomOptions({...randomOptions, type: e.target.value})}>
+                                    <select value={randomOptions.type} onChange={e => setRandomOptions({ ...randomOptions, type: e.target.value })}>
                                         <option value="">Any</option>
                                         {uniqueValues.types.map(t => <option key={t} value={t}>{t}</option>)}
                                     </select>
                                 </div>
                                 <div className="form-group"><label>Status</label>
-                                    <select value={randomOptions.status} onChange={e => setRandomOptions({...randomOptions, status: e.target.value})}>
+                                    <select value={randomOptions.status} onChange={e => setRandomOptions({ ...randomOptions, status: e.target.value })}>
                                         <option value="">Any</option>
                                         {uniqueValues.statuses.map(s => <option key={s} value={s}>{s}</option>)}
                                     </select>
@@ -993,19 +1001,19 @@ function App() {
                             </div>
                         )}
 
-                        <div style={{marginTop:12}}>
+                        <div style={{ marginTop: 12 }}>
                             <button className="btn-primary" onClick={performRandomPick}>Pick</button>
-                            <button className="btn-secondary" style={{marginLeft:8}} onClick={() => { setShowRandomModal(false); setPickedRandom(null); }}>Close</button>
+                            <button className="btn-secondary" style={{ marginLeft: 8 }} onClick={() => { setShowRandomModal(false); setPickedRandom(null); }}>Close</button>
                         </div>
 
                         {pickedRandom && (
-                            <div style={{marginTop:12, background:'var(--card)', padding:12, borderRadius:8}}>
+                            <div style={{ marginTop: 12, background: 'var(--card)', padding: 12, borderRadius: 8 }}>
                                 <h3>{pickedRandom.name}</h3>
                                 <div><strong>Platform:</strong> {pickedRandom.platform}</div>
                                 <div><strong>Subject:</strong> {pickedRandom.subject}</div>
-                                <div style={{marginTop:8}}>
+                                <div style={{ marginTop: 8 }}>
                                     <button className="btn-secondary" onClick={() => { openEditModal(pickedRandom); setShowRandomModal(false); }}>Open / Edit</button>
-                                    <button className="btn-primary" style={{marginLeft:8}} onClick={() => { setTests(prev => prev.map(t => t.id === pickedRandom.id ? {...t, status:'Test Given', updatedAt: Date.now()} : t)); setShowRandomModal(false); }}>Mark as Given</button>
+                                    <button className="btn-primary" style={{ marginLeft: 8 }} onClick={() => { setTests(prev => prev.map(t => t.id === pickedRandom.id ? { ...t, status: 'Test Given', updatedAt: Date.now() } : t)); setShowRandomModal(false); }}>Mark as Given</button>
                                 </div>
                             </div>
                         )}
@@ -1017,13 +1025,13 @@ function App() {
                 <div className="modal active">
                     <div className="modal-content">
                         <h2>Sync Configuration</h2>
-                        <p style={{color:'var(--muted)'}}>Paste your Firebase Web config below (create a Firebase project and enable Realtime Database if you want multi-device sync).</p>
-                        <div className="form-group"><label>apiKey</label><input value={firebaseForm.apiKey} onChange={e => setFirebaseForm({...firebaseForm, apiKey: e.target.value})} /></div>
-                        <div className="form-group"><label>authDomain</label><input value={firebaseForm.authDomain} onChange={e => setFirebaseForm({...firebaseForm, authDomain: e.target.value})} /></div>
-                        <div className="form-group"><label>databaseURL</label><input value={firebaseForm.databaseURL} onChange={e => setFirebaseForm({...firebaseForm, databaseURL: e.target.value})} /></div>
-                        <div className="form-group"><label>projectId</label><input value={firebaseForm.projectId} onChange={e => setFirebaseForm({...firebaseForm, projectId: e.target.value})} /></div>
-                        <div className="form-group"><label>appId</label><input value={firebaseForm.appId} onChange={e => setFirebaseForm({...firebaseForm, appId: e.target.value})} /></div>
-                        <div style={{display:'flex', gap:12, marginTop:12, flexWrap:'wrap'}}>
+                        <p style={{ color: 'var(--muted)' }}>Paste your Firebase Web config below (create a Firebase project and enable Realtime Database if you want multi-device sync).</p>
+                        <div className="form-group"><label>apiKey</label><input value={firebaseForm.apiKey} onChange={e => setFirebaseForm({ ...firebaseForm, apiKey: e.target.value })} /></div>
+                        <div className="form-group"><label>authDomain</label><input value={firebaseForm.authDomain} onChange={e => setFirebaseForm({ ...firebaseForm, authDomain: e.target.value })} /></div>
+                        <div className="form-group"><label>databaseURL</label><input value={firebaseForm.databaseURL} onChange={e => setFirebaseForm({ ...firebaseForm, databaseURL: e.target.value })} /></div>
+                        <div className="form-group"><label>projectId</label><input value={firebaseForm.projectId} onChange={e => setFirebaseForm({ ...firebaseForm, projectId: e.target.value })} /></div>
+                        <div className="form-group"><label>appId</label><input value={firebaseForm.appId} onChange={e => setFirebaseForm({ ...firebaseForm, appId: e.target.value })} /></div>
+                        <div style={{ display: 'flex', gap: 12, marginTop: 12, flexWrap: 'wrap' }}>
                             <button className="btn-secondary" onClick={() => setShowSyncModal(false)}>Close</button>
                             <button className="btn-secondary" onClick={testFirebaseConnection}>Test Connection</button>
                             <button className="btn-primary" onClick={saveSyncConfig}>Save Config</button>
