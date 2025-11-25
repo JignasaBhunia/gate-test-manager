@@ -107,7 +107,9 @@ function App() {
     const applyingRemote = useRef(false);
     const [showAnalyticsModal, setShowAnalyticsModal] = useState(false);
     const analyticsRefs = useRef({ hist: null, pie: null, timeSeries: null });
-    const [analyticsSubject, setAnalyticsSubject] = useState('');
+    const [analyticsSubjects, setAnalyticsSubjects] = useState([]);
+    const [analyticsAggregate, setAnalyticsAggregate] = useState('day'); // 'day' | 'week' | 'month'
+    const [analyticsCombineMode, setAnalyticsCombineMode] = useState('combine'); // 'combine' or 'multi'
     const [showRandomModal, setShowRandomModal] = useState(false);
     const [pickedRandom, setPickedRandom] = useState(null);
     const [randomOptions, setRandomOptions] = useState({ platform: '', subject: '', type: '', status: '', useCurrentFilters: true });
@@ -530,7 +532,7 @@ function App() {
         fetchOtherUsers();
         // draw charts
         drawAnalyticsCharts();
-    }, [showAnalyticsModal, tests, selectedCompareUsers, analyticsSubject]);
+    }, [showAnalyticsModal, tests, selectedCompareUsers, analyticsSubjects, analyticsAggregate, analyticsCombineMode]);
 
     const performRandomPick = () => {
         let pool = tests.slice();
@@ -795,12 +797,53 @@ function App() {
                                     <div><strong>Platforms:</strong> {uniqueValues.platforms.join(', ')}</div>
                                 </div>
                             </div>
-                            <div style={{width:220}}>
-                                <label style={{display:'block', marginBottom:6}}>Subject Filter</label>
-                                <select value={analyticsSubject} onChange={e => setAnalyticsSubject(e.target.value)}>
-                                    <option value=''>All Subjects</option>
-                                    {uniqueValues.subjects.map(s => <option key={s} value={s}>{s}</option>)}
-                                </select>
+                            <div style={{width:320, display:'flex', gap:8, alignItems:'center'}}>
+                                <div style={{flex:1}}>
+                                    <label style={{display:'block', marginBottom:6}}>Subjects</label>
+                                    <select multiple value={analyticsSubjects} onChange={e => setAnalyticsSubjects(Array.from(e.target.selectedOptions).map(o=>o.value))} style={{minHeight:80, width:'100%'}}>
+                                        {uniqueValues.subjects.map(s => <option key={s} value={s}>{s}</option>)}
+                                    </select>
+                                </div>
+                                <div style={{width:140}}>
+                                    <label style={{display:'block', marginBottom:6}}>Mode</label>
+                                    <select value={analyticsCombineMode} onChange={e => setAnalyticsCombineMode(e.target.value)}>
+                                        <option value="combine">Combine (avg)</option>
+                                        <option value="multi">Multi-series</option>
+                                    </select>
+                                </div>
+                                <div style={{width:120}}>
+                                    <label style={{display:'block', marginBottom:6}}>Aggregate</label>
+                                    <select value={analyticsAggregate} onChange={e => setAnalyticsAggregate(e.target.value)}>
+                                        <option value="day">Day</option>
+                                        <option value="week">Week</option>
+                                        <option value="month">Month</option>
+                                    </select>
+                                </div>
+                                <div style={{display:'flex', flexDirection:'column', gap:6}}>
+                                    <button className="btn-secondary" onClick={() => {
+                                        // export CSV of current time-series
+                                        try {
+                                            const chart = analyticsRefs.current.timeSeries;
+                                            if (!chart) { alert('No time-series chart available yet'); return; }
+                                            const labels = chart.data.labels || [];
+                                            const datasets = chart.data.datasets || [];
+                                            const rows = [ ['date', ...datasets.map(d=>d.label)] ];
+                                            for (let i=0;i<labels.length;i++) rows.push([labels[i], ...datasets.map(d=> (d.data[i]===null||d.data[i]===undefined)?'':d.data[i])]);
+                                            const csv = rows.map(r => r.map(c => (''+c).includes(',')?('"'+(''+c).replace(/"/g,'""')+'"'):(c||'')).join(',')).join('\n');
+                                            const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+                                            const url = URL.createObjectURL(blob);
+                                            const a = document.createElement('a'); a.href = url; a.download = 'analytics_timeseries.csv'; a.click(); URL.revokeObjectURL(url);
+                                        } catch(e){ alert('Export failed: '+e.message); }
+                                    }}>Export CSV</button>
+                                    <button className="btn-secondary" onClick={() => {
+                                        try {
+                                            const chart = analyticsRefs.current.timeSeries;
+                                            if (!chart) { alert('No time-series chart available yet'); return; }
+                                            const url = chart.toBase64Image();
+                                            const a = document.createElement('a'); a.href = url; a.download = 'analytics_timeseries.png'; a.click();
+                                        } catch(e){ alert('Export image failed: '+e.message); }
+                                    }}>Export PNG</button>
+                                </div>
                             </div>
                         </div>
 
