@@ -350,8 +350,8 @@
     <script type="text/babel">
         const { useState, useEffect, useMemo } = React;
 
-        // Load CSV from GitHub
-        const GITHUB_CSV_URL = 'https://raw.githubusercontent.com/JignasaBhunia/gate-test-manager/feature/structured-test-dataset-ui/tests_seed.csv';
+        // Load CSV from GitHub - FIXED: pointing to main branch
+        const GITHUB_CSV_URL = 'https://raw.githubusercontent.com/JignasaBhunia/gate-test-manager/main/tests_seed.csv';
 
         function parseCSV(csv) {
             const lines = csv.trim().split('\n');
@@ -384,6 +384,8 @@
 
         function App() {
             const [tests, setTests] = useState([]);
+            const [loading, setLoading] = useState(true);
+            const [error, setError] = useState(null);
             const [filters, setFilters] = useState({
                 platform: '',
                 subject: '',
@@ -397,15 +399,25 @@
 
             useEffect(() => {
                 // Load tests from GitHub CSV
+                console.log('Loading CSV from:', GITHUB_CSV_URL);
                 fetch(GITHUB_CSV_URL)
-                    .then(response => response.text())
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                        }
+                        return response.text();
+                    })
                     .then(csv => {
+                        console.log('CSV loaded, parsing...');
                         const parsedTests = parseCSV(csv);
+                        console.log('Parsed tests:', parsedTests.length);
                         setTests(parsedTests);
+                        setLoading(false);
                     })
                     .catch(error => {
                         console.error('Error loading CSV:', error);
-                        alert('Failed to load test data from GitHub');
+                        setError(error.message);
+                        setLoading(false);
                     });
             }, []);
 
@@ -506,6 +518,28 @@
                 setShowEditModal(false);
                 setEditingTest(null);
             };
+
+            if (loading) {
+                return (
+                    <div className="container">
+                        <header>
+                            <h1>GATE Test Manager</h1>
+                            <p className="subtitle">Loading test data...</p>
+                        </header>
+                    </div>
+                );
+            }
+
+            if (error) {
+                return (
+                    <div className="container">
+                        <header>
+                            <h1>GATE Test Manager</h1>
+                            <p className="subtitle" style={{ color: '#e53e3e' }}>Error loading data: {error}</p>
+                        </header>
+                    </div>
+                );
+            }
 
             return (
                 <div className="container">
