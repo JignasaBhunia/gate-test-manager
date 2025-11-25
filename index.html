@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,7 +8,31 @@
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <!-- Optional: Firebase (compat) for multi-device sync. Configure in-app to enable. -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+    <!-- Chart.js for analytics -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
+        :root {
+            --bg: #f5f7fa;
+            --card: #ffffff;
+            --text: #2d3748;
+            --muted: #718096;
+            --accent: #4299e1;
+            --surface-variant: #f7fafc;
+        }
+
+        body.dark {
+            --bg: #0f1724;
+            --card: #0b1220;
+            --text: #e6eef8;
+            --muted: #9fb3c8;
+            --accent: #60a5fa;
+            --surface-variant: #071023;
+        }
+
         * {
             margin: 0;
             padding: 0;
@@ -16,8 +41,8 @@
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', sans-serif;
-            background: #f5f7fa;
-            color: #2d3748;
+            background: var(--bg);
+            color: var(--text);
             line-height: 1.6;
         }
 
@@ -28,22 +53,22 @@
         }
 
         header {
-            background: white;
+            background: var(--card);
             padding: 20px;
             border-radius: 12px;
             margin-bottom: 24px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
         }
 
         h1 {
             font-size: 28px;
             font-weight: 700;
-            color: #1a202c;
+            color: var(--text);
             margin-bottom: 8px;
         }
 
         .subtitle {
-            color: #718096;
+            color: var(--muted);
             font-size: 14px;
         }
 
@@ -55,16 +80,24 @@
         }
 
         .metric-card {
-            background: white;
+            background: var(--card);
             padding: 20px;
             border-radius: 12px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
             border-left: 4px solid #4299e1;
         }
 
-        .metric-card.pending { border-left-color: #ed8936; }
-        .metric-card.completed { border-left-color: #48bb78; }
-        .metric-card.average { border-left-color: #9f7aea; }
+        .metric-card.pending {
+            border-left-color: #ed8936;
+        }
+
+        .metric-card.completed {
+            border-left-color: #48bb78;
+        }
+
+        .metric-card.average {
+            border-left-color: #9f7aea;
+        }
 
         .metric-label {
             font-size: 13px;
@@ -77,15 +110,15 @@
         .metric-value {
             font-size: 32px;
             font-weight: 700;
-            color: #1a202c;
+            color: var(--text);
         }
 
         .controls {
-            background: white;
+            background: var(--card);
             padding: 20px;
             border-radius: 12px;
             margin-bottom: 24px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
         }
 
         .filters {
@@ -109,17 +142,22 @@
             letter-spacing: 0.3px;
         }
 
-        select, input[type="text"] {
+        select,
+        input[type="text"],
+        input[type="number"],
+        input[type="date"],
+        textarea {
             padding: 10px 12px;
             border: 1px solid #e2e8f0;
             border-radius: 8px;
             font-size: 14px;
-            background: white;
-            color: #2d3748;
+            background: var(--card);
+            color: var(--text);
             transition: all 0.2s;
         }
 
-        select:focus, input[type="text"]:focus {
+        select:focus,
+        input[type="text"]:focus {
             outline: none;
             border-color: #4299e1;
             box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.1);
@@ -162,10 +200,10 @@
         }
 
         .table-container {
-            background: white;
+            background: var(--card);
             border-radius: 12px;
-            overflow: hidden;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            overflow-x: auto;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
         }
 
         table {
@@ -173,33 +211,9 @@
             border-collapse: collapse;
         }
 
-        thead {
-            background: #f7fafc;
-            border-bottom: 2px solid #e2e8f0;
-        }
-
-        th {
-            padding: 14px 16px;
-            text-align: left;
-            font-size: 12px;
-            font-weight: 700;
-            color: #4a5568;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        td {
-            padding: 14px 16px;
-            border-bottom: 1px solid #f0f0f0;
-            font-size: 14px;
-        }
-
-        tbody tr {
-            transition: background 0.2s;
-        }
 
         tbody tr:hover {
-            background: #f7fafc;
+            background: var(--surface-variant);
         }
 
         .badge {
@@ -210,14 +224,40 @@
             font-weight: 600;
         }
 
-        .badge-topic { background: #bee3f8; color: #2c5282; }
-        .badge-subject { background: #c6f6d5; color: #276749; }
-        .badge-full { background: #fed7d7; color: #9b2c2c; }
-        .badge-mock { background: #e9d8fd; color: #6b46c1; }
+        .badge-topic {
+            background: #bee3f8;
+            color: #2c5282;
+        }
 
-        .status-not-started { background: #fed7d7; color: #9b2c2c; }
-        .status-completed { background: #c6f6d5; color: #276749; }
-        .status-pending { background: #feebc8; color: #c05621; }
+        .badge-subject {
+            background: #c6f6d5;
+            color: #276749;
+        }
+
+        .badge-full {
+            background: #fed7d7;
+            color: #9b2c2c;
+        }
+
+        .badge-mock {
+            background: #e9d8fd;
+            color: #6b46c1;
+        }
+
+        .status-not-started {
+            background: #fed7d7;
+            color: #9b2c2c;
+        }
+
+        .status-completed {
+            background: #c6f6d5;
+            color: #276749;
+        }
+
+        .status-pending {
+            background: #feebc8;
+            color: #c05621;
+        }
 
         .editable-cell {
             cursor: pointer;
@@ -225,7 +265,7 @@
         }
 
         .editable-cell:hover {
-            background: #f7fafc;
+            background: var(--surface-variant);
         }
 
         .editable-cell input {
@@ -236,14 +276,25 @@
             font-size: 14px;
         }
 
-        .platform-go { color: #4299e1; font-weight: 600; }
-        .platform-me { color: #ed8936; font-weight: 600; }
-        .platform-zeal { color: #9f7aea; font-weight: 600; }
+        .platform-go {
+            color: #4299e1;
+            font-weight: 600;
+        }
+
+        .platform-me {
+            color: #ed8936;
+            font-weight: 600;
+        }
+
+        .platform-zeal {
+            color: #9f7aea;
+            font-weight: 600;
+        }
 
         .empty-state {
             text-align: center;
             padding: 60px 20px;
-            color: #a0aec0;
+            color: var(--muted);
         }
 
         .empty-state svg {
@@ -261,7 +312,7 @@
             top: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0,0,0,0.5);
+            background: rgba(0, 0, 0, 0.5);
             align-items: center;
             justify-content: center;
         }
@@ -271,7 +322,7 @@
         }
 
         .modal-content {
-            background: white;
+            background: var(--card);
             padding: 30px;
             border-radius: 12px;
             max-width: 500px;
@@ -282,7 +333,7 @@
 
         .modal-content h2 {
             margin-bottom: 20px;
-            color: #1a202c;
+            color: var(--text);
         }
 
         .form-group {
@@ -293,7 +344,7 @@
             display: block;
             margin-bottom: 6px;
             font-weight: 600;
-            color: #4a5568;
+            color: var(--muted);
         }
 
         .form-group input,
@@ -338,477 +389,26 @@
                 font-size: 12px;
             }
 
-            th, td {
+            th,
+            td {
                 padding: 10px 8px;
             }
         }
     </style>
 </head>
+
 <body>
     <div id="root"></div>
 
+    <script type="text/babel" src="src/components/Header.jsx"></script>
+    <script type="text/babel" src="src/components/Table.jsx"></script>
+    <script type="text/babel" src="src/components/Analytics.jsx"></script>
+    <script src="src/config.js"></script>
+    <script type="text/babel" src="src/App.jsx"></script>
     <script type="text/babel">
-        const { useState, useEffect, useMemo } = React;
-
-        // Load CSV from GitHub - FIXED: pointing to main branch
-        const GITHUB_CSV_URL = 'https://raw.githubusercontent.com/JignasaBhunia/gate-test-manager/main/tests_seed.csv';
-
-        function parseCSV(csv) {
-            const lines = csv.trim().split('\n');
-            const headers = lines[0].split(',');
-            
-            return lines.slice(1).map(line => {
-                const values = [];
-                let current = '';
-                let inQuotes = false;
-                
-                for (let char of line) {
-                    if (char === '"') {
-                        inQuotes = !inQuotes;
-                    } else if (char === ',' && !inQuotes) {
-                        values.push(current.trim());
-                        current = '';
-                    } else {
-                        current += char;
-                    }
-                }
-                values.push(current.trim());
-                
-                const obj = {};
-                headers.forEach((header, i) => {
-                    obj[header.trim()] = values[i] || '';
-                });
-                return obj;
-            });
-        }
-
-        function App() {
-            const [tests, setTests] = useState([]);
-            const [loading, setLoading] = useState(true);
-            const [error, setError] = useState(null);
-            const [filters, setFilters] = useState({
-                platform: '',
-                subject: '',
-                type: '',
-                status: '',
-                search: ''
-            });
-            const [editingCell, setEditingCell] = useState(null);
-            const [showEditModal, setShowEditModal] = useState(false);
-            const [editingTest, setEditingTest] = useState(null);
-
-            useEffect(() => {
-                // Load tests from GitHub CSV
-                console.log('Loading CSV from:', GITHUB_CSV_URL);
-                fetch(GITHUB_CSV_URL)
-                    .then(response => {
-                        if (!response.ok) {
-                            throw new Error(`HTTP error! status: ${response.status}`);
-                        }
-                        return response.text();
-                    })
-                    .then(csv => {
-                        console.log('CSV loaded, parsing...');
-                        const parsedTests = parseCSV(csv);
-                        console.log('Parsed tests:', parsedTests.length);
-                        setTests(parsedTests);
-                        setLoading(false);
-                    })
-                    .catch(error => {
-                        console.error('Error loading CSV:', error);
-                        setError(error.message);
-                        setLoading(false);
-                    });
-            }, []);
-
-            const filteredTests = useMemo(() => {
-                return tests.filter(test => {
-                    if (filters.platform && test.platform !== filters.platform) return false;
-                    if (filters.subject && test.subject !== filters.subject) return false;
-                    if (filters.type && test.type !== filters.type) return false;
-                    if (filters.status && test.status !== filters.status) return false;
-                    if (filters.search && !test.name.toLowerCase().includes(filters.search.toLowerCase())) return false;
-                    return true;
-                });
-            }, [tests, filters]);
-
-            const metrics = useMemo(() => {
-                const total = tests.length;
-                const completed = tests.filter(t => t.status === 'Completed').length;
-                const pending = tests.filter(t => t.status === 'Pending').length;
-                const notStarted = tests.filter(t => t.status === 'Not Started').length;
-                
-                const completedTests = tests.filter(t => t.marks_obtained);
-                const avgScore = completedTests.length > 0
-                    ? (completedTests.reduce((sum, t) => sum + (parseFloat(t.marks_obtained) || 0), 0) / completedTests.length).toFixed(1)
-                    : '0.0';
-
-                return { total, completed, pending: pending + notStarted, avgScore };
-            }, [tests]);
-
-            const uniqueValues = useMemo(() => ({
-                platforms: [...new Set(tests.map(t => t.platform))],
-                subjects: [...new Set(tests.map(t => t.subject))],
-                types: [...new Set(tests.map(t => t.type))],
-                statuses: [...new Set(tests.map(t => t.status))]
-            }), [tests]);
-
-            const handleFilterChange = (key, value) => {
-                setFilters(prev => ({ ...prev, [key]: value }));
-            };
-
-            const clearFilters = () => {
-                setFilters({ platform: '', subject: '', type: '', status: '', search: '' });
-            };
-
-            const pickRandomTest = () => {
-                const availableTests = tests.filter(t => t.status !== 'Completed');
-                if (availableTests.length === 0) {
-                    alert('No tests available!');
-                    return;
-                }
-                const random = availableTests[Math.floor(Math.random() * availableTests.length)];
-                alert(`Random Test: ${random.name}\nPlatform: ${random.platform}\nSubject: ${random.subject}`);
-            };
-
-            const downloadCSV = () => {
-                const headers = ['id', 'platform', 'name', 'date', 'type', 'subject', 'questions', 'marks', 'time', 'syllabus', 'link', 'remarks', 'status', 'marks_obtained', 'potential_marks'];
-                const csvRows = [
-                    headers.join(','),
-                    ...tests.map(test => 
-                        headers.map(h => {
-                            const value = test[h] || '';
-                            // Escape values with commas or quotes
-                            return value.includes(',') || value.includes('"') ? `"${value.replace(/"/g, '""')}"` : value;
-                        }).join(',')
-                    )
-                ].join('\n');
-                
-                const blob = new Blob([csvRows], { type: 'text/csv;charset=utf-8;' });
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = 'gate_tests_updated.csv';
-                a.click();
-                window.URL.revokeObjectURL(url);
-            };
-
-            const updateTestStatus = (testId, newStatus) => {
-                setTests(prev => prev.map(test => 
-                    test.id === testId ? { ...test, status: newStatus } : test
-                ));
-            };
-
-            const handleCellEdit = (testId, field, value) => {
-                setTests(prev => prev.map(test => 
-                    test.id === testId ? { ...test, [field]: value } : test
-                ));
-                setEditingCell(null);
-            };
-
-            const openEditModal = (test) => {
-                setEditingTest({...test});
-                setShowEditModal(true);
-            };
-
-            const saveEditedTest = () => {
-                setTests(prev => prev.map(test => 
-                    test.id === editingTest.id ? editingTest : test
-                ));
-                setShowEditModal(false);
-                setEditingTest(null);
-            };
-
-            if (loading) {
-                return (
-                    <div className="container">
-                        <header>
-                            <h1>GATE Test Manager</h1>
-                            <p className="subtitle">Loading test data...</p>
-                        </header>
-                    </div>
-                );
-            }
-
-            if (error) {
-                return (
-                    <div className="container">
-                        <header>
-                            <h1>GATE Test Manager</h1>
-                            <p className="subtitle" style={{ color: '#e53e3e' }}>Error loading data: {error}</p>
-                        </header>
-                    </div>
-                );
-            }
-
-            return (
-                <div className="container">
-                    <header>
-                        <h1>GATE Test Manager</h1>
-                        <p className="subtitle">Track and analyze your GATE CSE 2026 preparation progress</p>
-                    </header>
-
-                    <div className="metrics-grid">
-                        <div className="metric-card">
-                            <div className="metric-label">Total Tests</div>
-                            <div className="metric-value">{metrics.total}</div>
-                        </div>
-                        <div className="metric-card pending">
-                            <div className="metric-label">Pending</div>
-                            <div className="metric-value">{metrics.pending}</div>
-                        </div>
-                        <div className="metric-card completed">
-                            <div className="metric-label">Completed</div>
-                            <div className="metric-value">{metrics.completed}</div>
-                        </div>
-                        <div className="metric-card average">
-                            <div className="metric-label">Average Score</div>
-                            <div className="metric-value">{metrics.avgScore}</div>
-                        </div>
-                    </div>
-
-                    <div className="controls">
-                        <div className="filters">
-                            <div className="filter-group">
-                                <label>Platform</label>
-                                <select value={filters.platform} onChange={e => handleFilterChange('platform', e.target.value)}>
-                                    <option value="">All Platforms</option>
-                                    {uniqueValues.platforms.map(p => <option key={p} value={p}>{p}</option>)}
-                                </select>
-                            </div>
-                            <div className="filter-group">
-                                <label>Subject</label>
-                                <select value={filters.subject} onChange={e => handleFilterChange('subject', e.target.value)}>
-                                    <option value="">All Subjects</option>
-                                    {uniqueValues.subjects.map(s => <option key={s} value={s}>{s}</option>)}
-                                </select>
-                            </div>
-                            <div className="filter-group">
-                                <label>Type</label>
-                                <select value={filters.type} onChange={e => handleFilterChange('type', e.target.value)}>
-                                    <option value="">All Types</option>
-                                    {uniqueValues.types.map(t => <option key={t} value={t}>{t}</option>)}
-                                </select>
-                            </div>
-                            <div className="filter-group">
-                                <label>Status</label>
-                                <select value={filters.status} onChange={e => handleFilterChange('status', e.target.value)}>
-                                    <option value="">All Status</option>
-                                    {uniqueValues.statuses.map(s => <option key={s} value={s}>{s}</option>)}
-                                </select>
-                            </div>
-                            <div className="filter-group">
-                                <label>Search</label>
-                                <input 
-                                    type="text" 
-                                    placeholder="Search tests..." 
-                                    value={filters.search}
-                                    onChange={e => handleFilterChange('search', e.target.value)}
-                                />
-                            </div>
-                        </div>
-                        <div className="actions">
-                            <button className="btn-primary" onClick={pickRandomTest}>🎲 Pick Random Test</button>
-                            <button className="btn-primary" onClick={() => alert('Analytics Dashboard coming soon!')}>📊 Analytics</button>
-                            <button className="btn-secondary" onClick={downloadCSV}>📥 Download CSV</button>
-                            <button className="btn-secondary" onClick={clearFilters}>🔄 Clear Filters</button>
-                        </div>
-                    </div>
-
-                    <div className="table-container">
-                        {filteredTests.length === 0 ? (
-                            <div className="empty-state">
-                                <p>No tests found matching your filters</p>
-                            </div>
-                        ) : (
-                            <table>
-                                <thead>
-                                    <tr>
-                                        <th>ID</th>
-                                        <th>Platform</th>
-                                        <th>Test Name</th>
-                                        <th>Subject</th>
-                                        <th>Type</th>
-                                        <th>Q</th>
-                                        <th>Marks</th>
-                                        <th>Time</th>
-                                        <th>Status</th>
-                                        <th>Obtained</th>
-                                        <th>Potential</th>
-                                        <th>Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {filteredTests.map(test => (
-                                        <tr key={test.id}>
-                                            <td>{test.id}</td>
-                                            <td className={`platform-${test.platform.toLowerCase().replace(/\s+/g, '-')}`}>
-                                                {test.platform}
-                                            </td>
-                                            <td>{test.name}</td>
-                                            <td>{test.subject}</td>
-                                            <td>
-                                                <span className={`badge badge-${test.type.toLowerCase()}`}>
-                                                    {test.type}
-                                                </span>
-                                            </td>
-                                            <td>{test.questions}</td>
-                                            <td>{test.marks}</td>
-                                            <td>{test.time}m</td>
-                                            <td>
-                                                <select 
-                                                    value={test.status}
-                                                    onChange={e => updateTestStatus(test.id, e.target.value)}
-                                                    style={{ 
-                                                        padding: '6px 10px', 
-                                                        borderRadius: '6px', 
-                                                        border: '1px solid #e2e8f0',
-                                                        fontSize: '12px',
-                                                        fontWeight: '600',
-                                                        cursor: 'pointer'
-                                                    }}
-                                                >
-                                                    <option value="Not Started">Not Started</option>
-                                                    <option value="Pending">Pending</option>
-                                                    <option value="Completed">Completed</option>
-                                                </select>
-                                            </td>
-                                            <td 
-                                                className="editable-cell"
-                                                onClick={() => setEditingCell({ id: test.id, field: 'marks_obtained' })}
-                                            >
-                                                {editingCell?.id === test.id && editingCell?.field === 'marks_obtained' ? (
-                                                    <input 
-                                                        type="number" 
-                                                        defaultValue={test.marks_obtained}
-                                                        onBlur={e => handleCellEdit(test.id, 'marks_obtained', e.target.value)}
-                                                        autoFocus
-                                                    />
-                                                ) : (
-                                                    test.marks_obtained || '-'
-                                                )}
-                                            </td>
-                                            <td 
-                                                className="editable-cell"
-                                                onClick={() => setEditingCell({ id: test.id, field: 'potential_marks' })}
-                                            >
-                                                {editingCell?.id === test.id && editingCell?.field === 'potential_marks' ? (
-                                                    <input 
-                                                        type="number" 
-                                                        defaultValue={test.potential_marks}
-                                                        onBlur={e => handleCellEdit(test.id, 'potential_marks', e.target.value)}
-                                                        autoFocus
-                                                    />
-                                                ) : (
-                                                    test.potential_marks || '-'
-                                                )}
-                                            </td>
-                                            <td>
-                                                <button 
-                                                    className="btn-secondary" 
-                                                    onClick={() => openEditModal(test)}
-                                                    style={{ padding: '6px 12px', fontSize: '12px' }}
-                                                >
-                                                    ✏️ Edit
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        )}
-                    </div>
-
-                    {showEditModal && (
-                        <div className="modal active">
-                            <div className="modal-content">
-                                <h2>Edit Test Details</h2>
-                                <div className="form-group">
-                                    <label>Test Name</label>
-                                    <input 
-                                        type="text" 
-                                        value={editingTest.name}
-                                        onChange={e => setEditingTest({...editingTest, name: e.target.value})}
-                                    />
-                                </div>
-                                <div className="form-group">
-                                    <label>Date</label>
-                                    <input 
-                                        type="date" 
-                                        value={editingTest.date}
-                                        onChange={e => setEditingTest({...editingTest, date: e.target.value})}
-                                    />
-                                </div>
-                                <div className="form-group">
-                                    <label>Subject</label>
-                                    <input 
-                                        type="text" 
-                                        value={editingTest.subject}
-                                        onChange={e => setEditingTest({...editingTest, subject: e.target.value})}
-                                    />
-                                </div>
-                                <div className="form-group">
-                                    <label>Questions</label>
-                                    <input 
-                                        type="number" 
-                                        value={editingTest.questions}
-                                        onChange={e => setEditingTest({...editingTest, questions: e.target.value})}
-                                    />
-                                </div>
-                                <div className="form-group">
-                                    <label>Marks</label>
-                                    <input 
-                                        type="number" 
-                                        value={editingTest.marks}
-                                        onChange={e => setEditingTest({...editingTest, marks: e.target.value})}
-                                    />
-                                </div>
-                                <div className="form-group">
-                                    <label>Time (minutes)</label>
-                                    <input 
-                                        type="number" 
-                                        value={editingTest.time}
-                                        onChange={e => setEditingTest({...editingTest, time: e.target.value})}
-                                    />
-                                </div>
-                                <div className="form-group">
-                                    <label>Syllabus</label>
-                                    <textarea 
-                                        value={editingTest.syllabus}
-                                        onChange={e => setEditingTest({...editingTest, syllabus: e.target.value})}
-                                    />
-                                </div>
-                                <div className="form-group">
-                                    <label>Link</label>
-                                    <input 
-                                        type="url" 
-                                        value={editingTest.link}
-                                        onChange={e => setEditingTest({...editingTest, link: e.target.value})}
-                                    />
-                                </div>
-                                <div className="form-group">
-                                    <label>Remarks</label>
-                                    <textarea 
-                                        value={editingTest.remarks}
-                                        onChange={e => setEditingTest({...editingTest, remarks: e.target.value})}
-                                    />
-                                </div>
-                                <div className="modal-actions">
-                                    <button className="btn-secondary" onClick={() => setShowEditModal(false)}>
-                                        Cancel
-                                    </button>
-                                    <button className="btn-primary" onClick={saveEditedTest}>
-                                        Save Changes
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-                </div>
-            );
-        }
-
+        // small bootstrap: App is exposed to window by src/App.jsx
         ReactDOM.render(<App />, document.getElementById('root'));
     </script>
 </body>
+
 </html>
