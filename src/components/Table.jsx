@@ -96,12 +96,16 @@ window.AppComponents.Table = function Table(props) {
                                 <th>Rank</th>
                                 <th>Actions</th>
                             </tr>
-                                    <td>
-                                        {test.percentMarks !== undefined && test.percentMarks !== '' ? `${test.percentMarks}%` : '-'}
-                                    </td>
-                                    <td>
-                                        {test.percentile || '-'}
-                                    </td>
+                        </thead>
+                        <tbody>
+                            {filteredTests.map(test => (
+                                <tr key={test.id}>
+                                    <td style={{fontSize:12, color:'var(--muted)'}}>{String(test.id).slice(0,12)}</td>
+                                    <td>{test.platform}</td>
+                                    <td style={{fontWeight:700}}>{test.name}</td>
+                                    <td>{test.subject}</td>
+                                    <td>{test.type}</td>
+                                    <td>{test.questions}</td>
                                     <td>{test.marks}</td>
                                     <td>{test.time}m</td>
                                     <td>
@@ -154,6 +158,9 @@ window.AppComponents.Table = function Table(props) {
                                         ) : (
                                             test.potential_marks || '-'
                                         )}
+                                    </td>
+                                    <td>
+                                        {test.percentMarks !== undefined && test.percentMarks !== '' ? `${test.percentMarks}%` : '-'}
                                     </td>
                                     <td>
                                         {test.percentile || '-'}
