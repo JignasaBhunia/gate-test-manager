@@ -5,6 +5,11 @@ const GITHUB_CSV_URL = 'https://raw.githubusercontent.com/JignasaBhunia/gate-tes
 const STORAGE_KEY = 'gate_tests_v1';
 const SETTINGS_KEY = 'gate_tests_settings_v1';
 
+// PASTE YOUR FIREBASE CONFIG HERE TO MAKE IT PERMANENT
+// Example: const DEFAULT_FIREBASE_CONFIG = { apiKey: "...", ... };
+// We now try to load it from window.GATE_APP_CONFIG (defined in src/config.js) to keep it separate.
+const DEFAULT_FIREBASE_CONFIG = (window.GATE_APP_CONFIG && window.GATE_APP_CONFIG.firebaseConfig) || null;
+
 function parseCSV(csv) {
     const lines = csv.trim().split('\n');
     const headers = lines[0].split(',');
@@ -98,7 +103,7 @@ function App() {
     const [editingTest, setEditingTest] = useState(null);
     const [showAddModal, setShowAddModal] = useState(false);
     const [newTest, setNewTest] = useState({ platform: '', platformNew: '', name: '', date: '', type: '', subject: '', questions: '', marks: '', time: '', syllabus: '', link: '', remarks: '', status: 'Not Started', marks_obtained: '', potential_marks: '', percentile: '', rank: '' });
-    const [settings, setSettings] = useState({ dark: false, syncEnabled: false, firebaseConfig: null });
+    const [settings, setSettings] = useState({ dark: false, syncEnabled: false, firebaseConfig: DEFAULT_FIREBASE_CONFIG });
     // Authenticated user (when using Firebase)
     const [user, setUser] = useState(null);
     const [otherUsers, setOtherUsers] = useState([]);
@@ -596,6 +601,14 @@ function App() {
                             />
                         </div>
                         <div className="form-group">
+                            <label>Type</label>
+                            <input
+                                type="text"
+                                value={editingTest.type}
+                                onChange={e => setEditingTest({ ...editingTest, type: e.target.value })}
+                            />
+                        </div>
+                        <div className="form-group">
                             <label>Questions</label>
                             <input
                                 type="number"
@@ -609,6 +622,31 @@ function App() {
                                 type="number"
                                 value={editingTest.marks}
                                 onChange={e => setEditingTest({ ...editingTest, marks: e.target.value })}
+                            />
+                        </div>
+                        <div className="form-group">
+                            <label>Marks Obtained</label>
+                            <input
+                                type="number"
+                                value={editingTest.marks_obtained}
+                                onChange={e => setEditingTest({ ...editingTest, marks_obtained: e.target.value })}
+                            />
+                        </div>
+                        <div className="form-group">
+                            <label>Potential Marks</label>
+                            <input
+                                type="number"
+                                value={editingTest.potential_marks}
+                                onChange={e => setEditingTest({ ...editingTest, potential_marks: e.target.value })}
+                            />
+                        </div>
+                        <div className="form-group">
+                            <label>Percentile (Calculated)</label>
+                            <input
+                                type="text"
+                                value={editingTest.percentile || ''}
+                                disabled
+                                style={{ background: 'var(--surface-variant)', opacity: 0.7 }}
                             />
                         </div>
                         <div className="form-group">

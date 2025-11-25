@@ -84,31 +84,24 @@ window.AppComponents.Table = function Table(props) {
                                 <th>Platform</th>
                                 <th>Test Name</th>
                                 <th>Subject</th>
-                                <th>Type</th>
-                                <th>Q</th>
-                                <th>Marks</th>
-                                <th>Time</th>
                                 <th>Status</th>
-                                <th>Obtained</th>
-                                <th>Potential</th>
                                 <th>% Marks</th>
-                                <th>Percentile</th>
-                                <th>Rank</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody>
                             {filteredTests.map(test => (
-                                <tr key={test.id}>
+                                <tr
+                                    key={test.id}
+                                    onClick={() => openEditModal(test)}
+                                    style={{ cursor: 'pointer' }}
+                                    title="Click to view/edit details"
+                                >
                                     <td style={{ fontSize: 12, color: 'var(--muted)' }}>{String(test.id).slice(0, 12)}</td>
                                     <td>{test.platform}</td>
                                     <td style={{ fontWeight: 700 }}>{test.name}</td>
                                     <td>{test.subject}</td>
-                                    <td>{test.type}</td>
-                                    <td>{test.questions}</td>
-                                    <td>{test.marks}</td>
-                                    <td>{test.time}m</td>
-                                    <td>
+                                    <td onClick={e => e.stopPropagation()}>
                                         <select
                                             value={test.status}
                                             onChange={e => updateTestStatus(test.id, e.target.value)}
@@ -129,58 +122,10 @@ window.AppComponents.Table = function Table(props) {
                                             <option value="Completed">Completed</option>
                                         </select>
                                     </td>
-                                    <td
-                                        className="editable-cell"
-                                        onClick={() => setEditingCell({ id: test.id, field: 'marks_obtained' })}
-                                    >
-                                        {editingCell?.id === test.id && editingCell?.field === 'marks_obtained' ? (
-                                            <input
-                                                type="number"
-                                                defaultValue={test.marks_obtained}
-                                                onBlur={e => handleCellEdit(test.id, 'marks_obtained', e.target.value)}
-                                                autoFocus
-                                            />
-                                        ) : (
-                                            test.marks_obtained || '-'
-                                        )}
-                                    </td>
-                                    <td
-                                        className="editable-cell"
-                                        onClick={() => setEditingCell({ id: test.id, field: 'potential_marks' })}
-                                    >
-                                        {editingCell?.id === test.id && editingCell?.field === 'potential_marks' ? (
-                                            <input
-                                                type="number"
-                                                defaultValue={test.potential_marks}
-                                                onBlur={e => handleCellEdit(test.id, 'potential_marks', e.target.value)}
-                                                autoFocus
-                                            />
-                                        ) : (
-                                            test.potential_marks || '-'
-                                        )}
-                                    </td>
                                     <td>
                                         {test.percentMarks !== undefined && test.percentMarks !== '' ? `${test.percentMarks}%` : '-'}
                                     </td>
-                                    <td>
-                                        {test.percentile || '-'}
-                                    </td>
-                                    <td
-                                        className="editable-cell"
-                                        onClick={() => setEditingCell({ id: test.id, field: 'rank' })}
-                                    >
-                                        {editingCell?.id === test.id && editingCell?.field === 'rank' ? (
-                                            <input
-                                                type="text"
-                                                defaultValue={test.rank}
-                                                onBlur={e => handleCellEdit(test.id, 'rank', e.target.value)}
-                                                autoFocus
-                                            />
-                                        ) : (
-                                            test.rank || '-'
-                                        )}
-                                    </td>
-                                    <td style={{ display: 'flex', gap: 8 }}>
+                                    <td style={{ display: 'flex', gap: 8 }} onClick={e => e.stopPropagation()}>
                                         <button
                                             className="btn-secondary"
                                             onClick={() => openEditModal(test)}
