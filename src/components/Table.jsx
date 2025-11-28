@@ -1,10 +1,31 @@
-window.AppComponents = window.AppComponents || {};
-window.AppComponents.Table = function Table(props) {
-    const { metrics, filters, uniqueValues, handleFilterChange, clearFilters, pickRandomTest, downloadCSV, filteredTests, editingCell, setEditingCell, handleCellEdit, updateTestStatus, openEditModal, deleteTest, visibleColumns, toggleColumn, allColumns } = props;
-    const [showColumnMenu, setShowColumnMenu] = React.useState(false);
+
+const Table = ({ 
+    tests, 
+    onEdit, 
+    onDelete, 
+    filters, 
+    handleFilterChange, 
+    uniqueValues, 
+    metrics, 
+    clearFilters, 
+    downloadCSV, 
+    pickRandomTest,
+    visibleColumns,
+    setVisibleColumns,
+    allColumns
+}) => {
+    const [showColumnModal, setShowColumnModal] = React.useState(false);
+
+    const toggleColumn = (colId) => {
+        const newCols = visibleColumns.includes(colId)
+            ? visibleColumns.filter(id => id !== colId)
+            : [...visibleColumns, colId];
+        setVisibleColumns(newCols);
+    };
 
     return (
-        <>
+        <div>
+            {/* Metrics Grid */}
             <div className="metrics-grid">
                 <div className="metric-card">
                     <div className="metric-label">Total Tests</div>
@@ -24,8 +45,9 @@ window.AppComponents.Table = function Table(props) {
                 </div>
             </div>
 
+            {/* Controls & Filters */}
             <div className="controls">
-                <div className="filters">
+                <div className="filters-grid">
                     <div className="filter-group">
                         <label>Platform</label>
                         <select value={filters.platform} onChange={e => handleFilterChange('platform', e.target.value)}>
@@ -56,177 +78,139 @@ window.AppComponents.Table = function Table(props) {
                     </div>
                     <div className="filter-group">
                         <label>Search</label>
-                        <input
-                            type="text"
-                            placeholder="Search tests..."
-                            value={filters.search}
-                            onChange={e => handleFilterChange('search', e.target.value)}
+                        <input 
+                            type="text" 
+                            placeholder="Search tests..." 
+                            value={filters.search} 
+                            onChange={e => handleFilterChange('search', e.target.value)} 
                         />
                     </div>
                     <div className="filter-group">
                         <label>From Date</label>
-                        <input
-                            type="date"
-                            value={filters.startDate}
-                            onChange={e => handleFilterChange('startDate', e.target.value)}
+                        <input 
+                            type="date" 
+                            value={filters.startDate} 
+                            onChange={e => handleFilterChange('startDate', e.target.value)} 
                         />
                     </div>
                     <div className="filter-group">
                         <label>To Date</label>
-                        <input
-                            type="date"
-                            value={filters.endDate}
-                            onChange={e => handleFilterChange('endDate', e.target.value)}
-                        />
-                    </div>
-                    <div className="filter-group">
-                        <label>Search</label>
-                        <input
-                            type="text"
-                            placeholder="Search tests..."
-                            value={filters.search}
-                            onChange={e => handleFilterChange('search', e.target.value)}
+                        <input 
+                            type="date" 
+                            value={filters.endDate} 
+                            onChange={e => handleFilterChange('endDate', e.target.value)} 
                         />
                     </div>
                 </div>
-                <div className="actions">
-                    <button className="btn-primary" onClick={pickRandomTest}>🎲 Pick Random Test</button>
 
-                    <button className="btn-secondary" onClick={downloadCSV}>📥 Download CSV</button>
-                    <div style={{ position: 'relative' }}>
-                        <button className="btn-secondary" onClick={() => setShowColumnMenu(!showColumnMenu)}>👁 Columns</button>
-                        {showColumnMenu && (
-                            <div style={{
-                                position: 'absolute',
-                                top: '100%',
-                                right: 0,
-                                background: 'white',
-                                border: '1px solid #e2e8f0',
-                                borderRadius: '8px',
-                                padding: '12px',
-                                zIndex: 10,
-                                boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
-                                minWidth: '200px',
-                                display: 'grid',
-                                gridTemplateColumns: '1fr 1fr',
-                                gap: '8px'
-                            }}>
-                                {allColumns.map(col => (
-                                    <label key={col.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', cursor: col.locked ? 'not-allowed' : 'pointer' }}>
-                                        <input
-                                            type="checkbox"
-                                            checked={visibleColumns.includes(col.id)}
-                                            onChange={() => toggleColumn(col.id)}
-                                            disabled={col.locked}
-                                        />
-                                        {col.label}
-                                    </label>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-                    <button className="btn-secondary" onClick={clearFilters}>🔄 Clear Filters</button>
+                <div className="actions">
+                    <button className="btn-primary" onClick={pickRandomTest}>
+                        <span className="material-icons" style={{ fontSize: '18px' }}>shuffle</span>
+                        Pick Random
+                    </button>
+                    <button className="btn-secondary" onClick={downloadCSV}>
+                        <span className="material-icons" style={{ fontSize: '18px' }}>download</span>
+                        Download CSV
+                    </button>
+                    <button className="btn-secondary" onClick={() => setShowColumnModal(true)}>
+                        <span className="material-icons" style={{ fontSize: '18px' }}>view_column</span>
+                        Columns
+                    </button>
+                    <button className="btn-secondary" onClick={clearFilters}>
+                        <span className="material-icons" style={{ fontSize: '18px' }}>clear_all</span>
+                        Clear Filters
+                    </button>
                 </div>
             </div>
 
+            {/* Table */}
             <div className="table-container">
-                {filteredTests.length === 0 ? (
+                {tests.length === 0 ? (
                     <div className="empty-state">
-                        <p>No tests found matching your filters</p>
+                        <span className="material-icons" style={{ fontSize: '48px', color: 'var(--md-sys-color-outline)' }}>assignment</span>
+                        <p>No tests found matching your filters.</p>
                     </div>
                 ) : (
                     <table>
                         <thead>
                             <tr>
-                                {visibleColumns.includes('id') && <th>ID</th>}
-                                {visibleColumns.includes('platform') && <th>Platform</th>}
-                                {visibleColumns.includes('name') && <th>Test Name</th>}
-                                {visibleColumns.includes('subject') && <th>Subject</th>}
-                                {visibleColumns.includes('type') && <th>Type</th>}
-                                {visibleColumns.includes('questions') && <th>Q</th>}
-                                {visibleColumns.includes('marks') && <th>Marks</th>}
-                                {visibleColumns.includes('time') && <th>Time</th>}
-                                {visibleColumns.includes('status') && <th>Status</th>}
-                                {visibleColumns.includes('marks_obtained') && <th>Obtained</th>}
-                                {visibleColumns.includes('potential_marks') && <th>Potential</th>}
-                                {visibleColumns.includes('percentMarks') && <th>% Marks</th>}
-                                {visibleColumns.includes('percentile') && <th>Percentile</th>}
-                                {visibleColumns.includes('rank') && <th>Rank</th>}
-                                {visibleColumns.includes('actions') && <th>Actions</th>}
+                                {allColumns.filter(col => visibleColumns.includes(col.id)).map(col => (
+                                    <th key={col.id}>{col.label}</th>
+                                ))}
+                                <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {filteredTests.map(test => (
-                                <tr
-                                    key={test.id}
-                                    onClick={() => openEditModal(test)}
-                                    style={{ cursor: 'pointer' }}
-                                    title="Click to view/edit details"
-                                >
-                                    {visibleColumns.includes('id') && <td style={{ fontSize: 12, color: 'var(--muted)' }}>{String(test.id).slice(0, 12)}</td>}
-                                    {visibleColumns.includes('platform') && <td>{test.platform}</td>}
-                                    {visibleColumns.includes('name') && <td style={{ fontWeight: 700 }}>{test.name}</td>}
-                                    {visibleColumns.includes('subject') && <td>{test.subject}</td>}
-                                    {visibleColumns.includes('type') && <td>{test.type}</td>}
-                                    {visibleColumns.includes('questions') && <td>{test.questions}</td>}
-                                    {visibleColumns.includes('marks') && <td>{test.marks}</td>}
-                                    {visibleColumns.includes('time') && <td>{test.time}</td>}
-                                    {visibleColumns.includes('status') && (
-                                        <td onClick={e => e.stopPropagation()}>
-                                            <select
-                                                value={test.status}
-                                                onChange={e => updateTestStatus(test.id, e.target.value)}
-                                                style={{
-                                                    padding: '6px 10px',
-                                                    borderRadius: '6px',
-                                                    border: '1px solid #e2e8f0',
-                                                    fontSize: '12px',
-                                                    fontWeight: '600',
-                                                    cursor: 'pointer'
-                                                }}
-                                            >
-                                                <option value="Not Started">Not Started</option>
-                                                <option value="Pending">Pending</option>
-                                                <option value="Test Given">Test Given</option>
-                                                <option value="Analysis Pending">Analysis Pending</option>
-                                                <option value="Analysis Done">Analysis Done</option>
-                                                <option value="Completed">Completed</option>
-                                            </select>
+                            {tests.map(test => (
+                                <tr key={test.id}>
+                                    {allColumns.filter(col => visibleColumns.includes(col.id)).map(col => (
+                                        <td key={col.id}>
+                                            {col.id === 'status' ? (
+                                                <span style={{ 
+                                                    padding: '4px 12px', 
+                                                    borderRadius: '16px', 
+                                                    fontSize: '12px', 
+                                                    fontWeight: '500',
+                                                    backgroundColor: test.status === 'Completed' ? '#E8F5E9' : test.status === 'Pending' ? '#FFF3E0' : '#FFEBEE',
+                                                    color: test.status === 'Completed' ? '#1B5E20' : test.status === 'Pending' ? '#E65100' : '#B71C1C'
+                                                }}>
+                                                    {test[col.id]}
+                                                </span>
+                                            ) : (
+                                                test[col.id]
+                                            )}
                                         </td>
-                                    )}
-                                    {visibleColumns.includes('marks_obtained') && <td>{test.marks_obtained}</td>}
-                                    {visibleColumns.includes('potential_marks') && <td>{test.potential_marks}</td>}
-                                    {visibleColumns.includes('percentMarks') && (
-                                        <td>
-                                            {test.percentMarks !== undefined && test.percentMarks !== '' ? `${test.percentMarks}%` : '-'}
-                                        </td>
-                                    )}
-                                    {visibleColumns.includes('percentile') && <td>{test.percentile}</td>}
-                                    {visibleColumns.includes('rank') && <td>{test.rank}</td>}
-                                    {visibleColumns.includes('actions') && (
-                                        <td style={{ display: 'flex', gap: 8 }} onClick={e => e.stopPropagation()}>
-                                            <button
-                                                className="btn-secondary"
-                                                onClick={() => openEditModal(test)}
-                                                style={{ padding: '6px 12px', fontSize: '12px' }}
+                                    ))}
+                                    <td>
+                                        <div style={{ display: 'flex', gap: '8px' }}>
+                                            <button 
+                                                className="btn-secondary" 
+                                                onClick={() => onEdit(test)}
+                                                style={{ padding: '6px 12px', minWidth: 'auto' }}
                                             >
-                                                ✏️ Edit
+                                                Edit
                                             </button>
-                                            <button
-                                                className="btn-secondary"
-                                                onClick={() => deleteTest(test.id)}
-                                                style={{ padding: '6px 12px', fontSize: '12px', background: '#fed7d7' }}
+                                            <button 
+                                                className="btn-secondary" 
+                                                onClick={() => onDelete(test.id)}
+                                                style={{ padding: '6px 12px', minWidth: 'auto', color: 'var(--md-sys-color-error)', borderColor: 'var(--md-sys-color-error)' }}
                                             >
-                                                🗑 Delete
+                                                Delete
                                             </button>
-                                        </td>
-                                    )}
+                                        </div>
+                                    </td>
                                 </tr>
                             ))}
                         </tbody>
                     </table>
                 )}
             </div>
-        </>
+
+            {/* Column Visibility Modal */}
+            <div className={`modal ${showColumnModal ? 'active' : ''}`} onClick={(e) => { if(e.target.className.includes('modal')) setShowColumnModal(false); }}>
+                <div className="modal-content">
+                    <h2>Customize Columns</h2>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                        {allColumns.map(col => (
+                            <label key={col.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px', border: '1px solid var(--md-sys-color-outline)', borderRadius: '8px', cursor: 'pointer' }}>
+                                <input 
+                                    type="checkbox" 
+                                    checked={visibleColumns.includes(col.id)} 
+                                    onChange={() => toggleColumn(col.id)}
+                                    style={{ width: 'auto' }}
+                                />
+                                {col.label}
+                            </label>
+                        ))}
+                    </div>
+                    <div className="modal-actions">
+                        <button className="btn-primary" onClick={() => setShowColumnModal(false)}>Done</button>
+                    </div>
+                </div>
+            </div>
+        </div>
     );
 };
+
+window.AppComponents = window.AppComponents || {};
+window.AppComponents.Table = Table;

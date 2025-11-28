@@ -17,17 +17,38 @@ const Analytics = ({ tests, otherUsers = [], user }) => {
         types: [...new Set(tests.map(t => t.type).filter(Boolean))]
     }), [tests]);
 
+    // Robust Date Parser
+    const parseDate = (dateStr) => {
+        if (!dateStr) return null;
+        // Try ISO first
+        let d = new Date(dateStr);
+        if (!isNaN(d.getTime())) return d;
+        
+        // Try DD-MM-YYYY or DD/MM/YYYY
+        const parts = dateStr.split(/[-/]/);
+        if (parts.length === 3) {
+            // Assume DD-MM-YYYY
+            d = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
+            if (!isNaN(d.getTime())) return d;
+        }
+        return null;
+    };
+
     // Filter tests based on all criteria
     const filteredTests = React.useMemo(() => {
         return tests.filter(t => {
             if (analyticsSubject && t.subject !== analyticsSubject) return false;
             if (analyticsPlatform && t.platform !== analyticsPlatform) return false;
             if (analyticsType && t.type !== analyticsType) return false;
+            
+            const tDate = parseDate(t.date);
             if (analyticsStartDate) {
-                if (new Date(t.date) < new Date(analyticsStartDate)) return false;
+                const sDate = new Date(analyticsStartDate);
+                if (!tDate || tDate < sDate) return false;
             }
             if (analyticsEndDate) {
-                if (new Date(t.date) > new Date(analyticsEndDate)) return false;
+                const eDate = new Date(analyticsEndDate);
+                if (!tDate || tDate > eDate) return false;
             }
             return true;
         });
@@ -74,17 +95,16 @@ const Analytics = ({ tests, otherUsers = [], user }) => {
                         datasets: [{
                             label: 'Test Count',
                             data: baseBuckets.counts,
-                            backgroundColor: 'rgba(66, 153, 225, 0.6)',
-                            borderColor: 'rgba(66, 153, 225, 1)',
-                            borderWidth: 1
+                            backgroundColor: 'rgba(103, 80, 164, 0.7)', // Material Primary
+                            borderRadius: 4,
                         }]
                     },
                     options: {
                         responsive: true,
                         plugins: { legend: { display: false } },
                         scales: {
-                            y: { beginAtZero: true, title: { display: true, text: 'Number of Tests' } },
-                            x: { title: { display: true, text: 'Percentage Range' } }
+                            y: { beginAtZero: true, title: { display: true, text: 'Number of Tests' }, grid: { display: false } },
+                            x: { title: { display: true, text: 'Percentage Range' }, grid: { display: false } }
                         }
                     }
                 });
@@ -103,15 +123,15 @@ const Analytics = ({ tests, otherUsers = [], user }) => {
                         datasets: [{
                             data: Object.values(platformCounts),
                             backgroundColor: [
-                                '#4299e1', '#48bb78', '#ed8936', '#9f7aea', '#f56565', '#ecc94b', '#667eea', '#ed64a6'
+                                '#6750A4', '#B3261E', '#7D5260', '#625B71', '#601410', '#49454F', '#21005D', '#31111D'
                             ],
-                            borderWidth: 1
+                            borderWidth: 0
                         }]
                     },
                     options: {
                         responsive: true,
                         plugins: {
-                            legend: { position: 'right' }
+                            legend: { position: 'right', labels: { usePointStyle: true } }
                         }
                     }
                 });
@@ -120,13 +140,13 @@ const Analytics = ({ tests, otherUsers = [], user }) => {
             // 3. Time Series Chart (Avg Performance)
             const dateAgg = {};
             filteredTests.forEach(t => {
-                if (!t.date) return;
-                const d = new Date(t.date);
-                if (isNaN(d)) return;
+                const d = parseDate(t.date);
+                if (!d) return;
 
                 let key;
                 if (analyticsAggregate === 'week') {
-                    const firstDay = new Date(d.setDate(d.getDate() - d.getDay()));
+                    const firstDay = new Date(d);
+                    firstDay.setDate(d.getDate() - d.getDay());
                     key = firstDay.toISOString().slice(0, 10);
                 } else if (analyticsAggregate === 'month') {
                     key = d.toISOString().slice(0, 7);
@@ -152,12 +172,13 @@ const Analytics = ({ tests, otherUsers = [], user }) => {
                         datasets: [{
                             label: 'Avg % Marks',
                             data: dataPm,
-                            borderColor: '#4299e1',
-                            backgroundColor: 'rgba(66, 153, 225, 0.1)',
+                            borderColor: '#6750A4',
+                            backgroundColor: 'rgba(103, 80, 164, 0.1)',
                             fill: true,
-                            tension: 0.3,
+                            tension: 0.4,
                             pointRadius: 4,
-                            pointHoverRadius: 6
+                            pointHoverRadius: 6,
+                            pointBackgroundColor: '#6750A4'
                         }]
                     },
                     options: {
@@ -165,8 +186,8 @@ const Analytics = ({ tests, otherUsers = [], user }) => {
                         interaction: { mode: 'index', intersect: false },
                         plugins: { legend: { display: false } },
                         scales: {
-                            x: { title: { display: true, text: 'Date' } },
-                            y: { beginAtZero: true, max: 100, title: { display: true, text: 'Average Percentage' } }
+                            x: { title: { display: true, text: 'Date' }, grid: { display: false } },
+                            y: { beginAtZero: true, max: 100, title: { display: true, text: 'Average Percentage' }, grid: { color: '#E7E0EC' } }
                         }
                     }
                 });
@@ -174,14 +195,18 @@ const Analytics = ({ tests, otherUsers = [], user }) => {
 
             // 4. Scatter Plot (Individual Test Performance)
             const scatterData = filteredTests
-                .filter(t => t.date && t.percentMarks !== undefined && t.percentMarks !== null)
-                .map(t => ({
-                    x: new Date(t.date),
-                    y: parseFloat(t.percentMarks),
-                    testName: t.name,
-                    platform: t.platform,
-                    marks: `${t.marks_obtained} / ${t.marks}`
-                }));
+                .map(t => {
+                    const d = parseDate(t.date);
+                    if (!d || t.percentMarks === undefined || t.percentMarks === null) return null;
+                    return {
+                        x: d,
+                        y: parseFloat(t.percentMarks),
+                        testName: t.name,
+                        platform: t.platform,
+                        marks: `${t.marks_obtained} / ${t.marks}`
+                    };
+                })
+                .filter(Boolean);
 
             const ctxScatter = document.getElementById('chartScatter')?.getContext('2d');
             if (ctxScatter) {
@@ -192,8 +217,7 @@ const Analytics = ({ tests, otherUsers = [], user }) => {
                         datasets: [{
                             label: 'Test Result',
                             data: scatterData,
-                            backgroundColor: '#ed8936',
-                            borderColor: '#dd6b20',
+                            backgroundColor: '#B3261E',
                             pointRadius: 6,
                             pointHoverRadius: 8
                         }]
@@ -220,12 +244,14 @@ const Analytics = ({ tests, otherUsers = [], user }) => {
                             x: {
                                 type: 'time',
                                 time: { unit: 'day' },
-                                title: { display: true, text: 'Date' }
+                                title: { display: true, text: 'Date' },
+                                grid: { display: false }
                             },
                             y: {
                                 beginAtZero: true,
                                 max: 100,
-                                title: { display: true, text: 'Percentage' }
+                                title: { display: true, text: 'Percentage' },
+                                grid: { color: '#E7E0EC' }
                             }
                         }
                     }
@@ -239,9 +265,9 @@ const Analytics = ({ tests, otherUsers = [], user }) => {
 
     return (
         <div className="analytics-container">
-            <div className="controls" style={{ marginBottom: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <h2 style={{ fontSize: '20px', fontWeight: 'bold' }}>Analytics Dashboard</h2>
+            <div className="controls card">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                    <h2 className="section-title">Analytics Dashboard</h2>
                     <div className="filter-group">
                         <label>Aggregate Trend By</label>
                         <select value={analyticsAggregate} onChange={e => setAnalyticsAggregate(e.target.value)} style={{ width: '150px' }}>
@@ -252,7 +278,7 @@ const Analytics = ({ tests, otherUsers = [], user }) => {
                     </div>
                 </div>
 
-                <div className="filters" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '16px', background: 'var(--surface-variant)', padding: '16px', borderRadius: '8px' }}>
+                <div className="filters-grid">
                     <div className="filter-group">
                         <label>Subject</label>
                         <select value={analyticsSubject} onChange={e => setAnalyticsSubject(e.target.value)}>
@@ -285,34 +311,34 @@ const Analytics = ({ tests, otherUsers = [], user }) => {
                 </div>
             </div>
 
-            <div className="charts-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '24px' }}>
+            <div className="charts-grid">
                 {/* Row 1: Scatter Plot (Full Width) */}
-                <div className="chart-card" style={{ background: 'var(--card)', padding: '20px', borderRadius: '12px', boxShadow: '0 2px 8px rgba(0,0,0,0.08)', gridColumn: '1 / -1' }}>
-                    <h3 style={{ marginBottom: '16px', color: 'var(--text)' }}>Individual Test Performance</h3>
-                    <div style={{ position: 'relative', height: '400px', width: '100%' }}>
+                <div className="chart-card full-width">
+                    <h3 className="chart-title">Individual Test Performance</h3>
+                    <div className="chart-wrapper-lg">
                         <canvas id="chartScatter"></canvas>
                     </div>
                 </div>
 
                 {/* Row 2: Trend Line (Full Width) */}
-                <div className="chart-card" style={{ background: 'var(--card)', padding: '20px', borderRadius: '12px', boxShadow: '0 2px 8px rgba(0,0,0,0.08)', gridColumn: '1 / -1' }}>
-                    <h3 style={{ marginBottom: '16px', color: 'var(--text)' }}>Average Performance Trend</h3>
-                    <div style={{ position: 'relative', height: '350px', width: '100%' }}>
+                <div className="chart-card full-width">
+                    <h3 className="chart-title">Average Performance Trend</h3>
+                    <div className="chart-wrapper-md">
                         <canvas id="chartTimeSeries"></canvas>
                     </div>
                 </div>
 
                 {/* Row 3: Distribution & Platform (Half Width) */}
-                <div className="chart-card" style={{ background: 'var(--card)', padding: '20px', borderRadius: '12px', boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}>
-                    <h3 style={{ marginBottom: '16px', color: 'var(--text)' }}>Score Distribution</h3>
-                    <div style={{ position: 'relative', height: '300px', width: '100%' }}>
+                <div className="chart-card">
+                    <h3 className="chart-title">Score Distribution</h3>
+                    <div className="chart-wrapper-sm">
                         <canvas id="chartHistogram"></canvas>
                     </div>
                 </div>
 
-                <div className="chart-card" style={{ background: 'var(--card)', padding: '20px', borderRadius: '12px', boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}>
-                    <h3 style={{ marginBottom: '16px', color: 'var(--text)' }}>Platform Breakdown</h3>
-                    <div style={{ position: 'relative', height: '300px', width: '100%', display: 'flex', justifyContent: 'center' }}>
+                <div className="chart-card">
+                    <h3 className="chart-title">Platform Breakdown</h3>
+                    <div className="chart-wrapper-sm flex-center">
                         <canvas id="chartPlatform"></canvas>
                     </div>
                 </div>
