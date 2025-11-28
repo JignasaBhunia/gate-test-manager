@@ -192,7 +192,7 @@ function App() {
     };
 
 
-    const loadFromManifest = () => {
+    const loadFromManifest = (force = false) => {
         console.log('Loading data from manifest:', MANIFEST_URL);
         fetch(MANIFEST_URL)
             .then(response => {
@@ -211,7 +211,7 @@ function App() {
             })
             .then(results => {
                 // If we have already loaded remote data (e.g. fast firebase auth), DO NOT overwrite
-                if (hasLoadedRemote.current) {
+                if (hasLoadedRemote.current && !force) {
                     console.log('Ignoring local data load because remote data already loaded');
                     return;
                 }
@@ -756,6 +756,13 @@ function App() {
         }
     };
 
+    const handleImportSeed = () => {
+        if (confirm('Import default seed data (Go Classes, Made Easy, Zeal)? This will merge with your existing data.')) {
+            setLoading(true);
+            loadFromManifest(true);
+        }
+    };
+
 
     const Header = window.AppComponents?.Header || (() => null);
     const Table = window.AppComponents?.Table || (() => null);
@@ -800,6 +807,7 @@ function App() {
                     onImportCSV={handleImportCSV}
                     onReset={handleResetData}
                     onBulkEdit={openBulkEdit}
+                    onImportSeed={handleImportSeed}
                 />
 
                 {currentView === 'dashboard' ? (

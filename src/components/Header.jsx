@@ -8,6 +8,7 @@ const Header = ({
     onImportCSV,
     onReset,
     onBulkEdit,
+    onImportSeed,
     onSignOut
 }) => {
     return (
@@ -48,6 +49,9 @@ const Header = ({
                         </label>
                         <button className="dropdown-item" onClick={onBulkEdit}>
                             <span className="material-icons">edit_note</span> Bulk Edit
+                        </button>
+                        <button className="dropdown-item" onClick={onImportSeed}>
+                            <span className="material-icons">cloud_download</span> Import Seed Data
                         </button>
                         <div className="dropdown-divider"></div>
                         <button className="dropdown-item" onClick={onReset} style={{ color: 'var(--danger)' }}>
