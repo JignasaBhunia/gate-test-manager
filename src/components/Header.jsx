@@ -1,42 +1,46 @@
-window.AppComponents = window.AppComponents || {};
-window.AppComponents.Header = function Header(props) {
-    const { openAddModal, toggleDark, settings, setShowSyncModal, user, onSignIn, onSignOut, currentView, setCurrentView } = props;
+
+const Header = ({ user, currentView, setCurrentView, theme, toggleTheme, handleSignOut, setShowAddTestModal }) => {
     return (
-        <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <header>
             <div>
                 <h1>GATE Test Manager</h1>
-                <p className="subtitle">Track and analyze your GATE CSE 2026 preparation progress</p>
+                <div className="subtitle">Track and analyze your GATE CSE 2026 preparation progress</div>
             </div>
-            <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-                <div style={{ display: 'flex', background: 'var(--surface-variant)', padding: 4, borderRadius: 8, marginRight: 12 }}>
-                    <button
-                        className={currentView === 'dashboard' ? 'btn-primary' : 'btn-secondary'}
-                        onClick={() => setCurrentView('dashboard')}
-                        style={{ padding: '6px 12px', fontSize: 13 }}
-                    >
-                        Dashboard
-                    </button>
-                    <button
-                        className={currentView === 'analytics' ? 'btn-primary' : 'btn-secondary'}
-                        onClick={() => setCurrentView('analytics')}
-                        style={{ padding: '6px 12px', fontSize: 13 }}
-                    >
-                        Analytics
-                    </button>
-                </div>
-                <button className="btn-secondary" onClick={openAddModal}>➕ Add Test</button>
-                <button className="btn-secondary" onClick={toggleDark}>{settings?.dark ? '🌙 Dark' : '🌤 Light'}</button>
-                <button className="btn-secondary" onClick={() => setShowSyncModal(true)} style={{ background: settings?.syncEnabled ? '#c6f6d5' : undefined }}>{settings?.syncEnabled ? '🔁 Sync On' : '🔁 Sync'}</button>
-                {user ? (
-                    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                        {user.photoURL && <img src={user.photoURL} alt="me" style={{ width: 28, height: 28, borderRadius: 14 }} />}
-                        <span style={{ fontWeight: 600 }}>{user.displayName || (user.email || 'User')}</span>
-                        <button className="btn-secondary" onClick={onSignOut}>Sign out</button>
+            <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
+                <button 
+                    className={currentView === 'dashboard' ? 'btn-primary' : 'btn-secondary'}
+                    onClick={() => setCurrentView('dashboard')}
+                >
+                    <span className="material-icons" style={{ fontSize: '18px' }}>dashboard</span>
+                    Dashboard
+                </button>
+                <button 
+                    className={currentView === 'analytics' ? 'btn-primary' : 'btn-secondary'}
+                    onClick={() => setCurrentView('analytics')}
+                >
+                    <span className="material-icons" style={{ fontSize: '18px' }}>analytics</span>
+                    Analytics
+                </button>
+                <button className="btn-primary" onClick={() => setShowAddTestModal(true)}>
+                    <span className="material-icons" style={{ fontSize: '18px' }}>add</span>
+                    Add Test
+                </button>
+                <button className="btn-secondary" onClick={toggleTheme}>
+                    <span className="material-icons" style={{ fontSize: '18px' }}>{theme === 'light' ? 'dark_mode' : 'light_mode'}</span>
+                    {theme === 'light' ? 'Dark' : 'Light'}
+                </button>
+                
+                {user && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginLeft: '8px' }}>
+                        {user.photoURL && <img src={user.photoURL} alt="Profile" style={{ width: '32px', height: '32px', borderRadius: '50%' }} />}
+                        <span style={{ fontSize: '14px', fontWeight: '500' }}>{user.displayName}</span>
+                        <button className="btn-secondary" onClick={handleSignOut} style={{ padding: '8px 16px' }}>Sign out</button>
                     </div>
-                ) : (
-                    <button className="btn-primary" onClick={onSignIn}>Sign in with Google</button>
                 )}
             </div>
         </header>
     );
 };
+
+window.AppComponents = window.AppComponents || {};
+window.AppComponents.Header = Header;

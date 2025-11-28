@@ -45,6 +45,7 @@ function parseCSV(csv) {
 // Otherwise percentile is computed from percent-marks distribution across tests.
 function deriveMetrics(arr) {
     try {
+        if (!Array.isArray(arr)) return [];
         const cloned = (arr || []).map(t => ({ ...t }));
 
         // compute percent marks for each test
@@ -139,8 +140,16 @@ function App() {
     ];
 
     const [visibleColumns, setVisibleColumns] = useState(() => {
-        const saved = localStorage.getItem('gate_visible_columns');
-        return saved ? JSON.parse(saved) : ALL_COLUMNS.filter(c => c.default).map(c => c.id);
+        try {
+            const saved = localStorage.getItem('gate_visible_columns');
+            if (saved) {
+                const parsed = JSON.parse(saved);
+                if (Array.isArray(parsed)) return parsed;
+            }
+        } catch (e) {
+            console.warn('Failed to parse visible columns from local storage', e);
+        }
+        return ALL_COLUMNS.filter(c => c.default).map(c => c.id);
     });
 
     const toggleColumn = (colId) => {
@@ -614,13 +623,13 @@ function App() {
                     clearFilters={clearFilters}
                     pickRandomTest={pickRandomTest}
                     downloadCSV={downloadCSV}
-                    filteredTests={filteredTests}
+                    tests={filteredTests}
                     editingCell={editingCell}
                     setEditingCell={setEditingCell}
                     handleCellEdit={handleCellEdit}
                     updateTestStatus={updateTestStatus}
-                    openEditModal={openEditModal}
-                    deleteTest={deleteTest}
+                    onEdit={openEditModal}
+                    onDelete={deleteTest}
                     visibleColumns={visibleColumns}
                     toggleColumn={toggleColumn}
                     allColumns={ALL_COLUMNS}
@@ -906,5 +915,4 @@ function App() {
 }
 
 // expose App to global scope so the bootstrap script can render it
-window.App = App;
 window.App = App;
