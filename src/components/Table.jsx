@@ -18,6 +18,7 @@ const Table = ({
     onCellEdit
 }) => {
     const [showColumnModal, setShowColumnModal] = React.useState(false);
+    const [showSubjectDropdown, setShowSubjectDropdown] = React.useState(false);
 
     const handleKeyDown = (e, testId, colId) => {
         if (e.key === 'Enter') {
@@ -36,6 +37,14 @@ const Table = ({
             case 'Analysis Done': return 'status-analysis-done';
             default: return 'status-pending';
         }
+    };
+
+    const toggleSubject = (subject) => {
+        const current = filters.subject || [];
+        const updated = current.includes(subject)
+            ? current.filter(s => s !== subject)
+            : [...current, subject];
+        handleFilterChange('subject', updated);
     };
 
     return (
@@ -70,13 +79,71 @@ const Table = ({
                             {uniqueValues.platforms.map(p => <option key={p} value={p}>{p}</option>)}
                         </select>
                     </div>
-                    <div className="filter-group">
+                    
+                    {/* Multi-select Subject Filter */}
+                    <div className="filter-group" style={{ position: 'relative' }}>
                         <label>Subject</label>
-                        <select value={filters.subject} onChange={e => handleFilterChange('subject', e.target.value)}>
-                            <option value="">All Subjects</option>
-                            {uniqueValues.subjects.map(s => <option key={s} value={s}>{s}</option>)}
-                        </select>
+                        <div 
+                            className="dropdown-trigger" 
+                            onClick={() => setShowSubjectDropdown(!showSubjectDropdown)}
+                            style={{ 
+                                background: 'var(--bg-input)', 
+                                padding: '12px 16px', 
+                                borderRadius: '12px', 
+                                cursor: 'pointer',
+                                minWidth: '150px',
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                                border: '1px solid transparent'
+                            }}
+                        >
+                            <span style={{ 
+                                whiteSpace: 'nowrap', 
+                                overflow: 'hidden', 
+                                textOverflow: 'ellipsis', 
+                                maxWidth: '120px',
+                                fontSize: '14px',
+                                fontWeight: '500'
+                            }}>
+                                {filters.subject && filters.subject.length > 0 
+                                    ? `${filters.subject.length} Selected` 
+                                    : 'All Subjects'}
+                            </span>
+                            <span className="material-icons" style={{ fontSize: '18px' }}>expand_more</span>
+                        </div>
+                        {showSubjectDropdown && (
+                            <div className="dropdown-menu" style={{ display: 'block', width: '250px', maxHeight: '300px', overflowY: 'auto' }}>
+                                <div 
+                                    className="dropdown-item" 
+                                    onClick={() => handleFilterChange('subject', [])}
+                                    style={{ fontWeight: (!filters.subject || filters.subject.length === 0) ? 'bold' : 'normal' }}
+                                >
+                                    All Subjects
+                                </div>
+                                <div className="dropdown-divider"></div>
+                                {uniqueValues.subjects.map(s => (
+                                    <label key={s} className="dropdown-item" style={{ cursor: 'pointer' }}>
+                                        <input 
+                                            type="checkbox" 
+                                            checked={filters.subject && filters.subject.includes(s)} 
+                                            onChange={() => toggleSubject(s)}
+                                            style={{ marginRight: '8px', width: 'auto' }}
+                                        />
+                                        {s}
+                                    </label>
+                                ))}
+                            </div>
+                        )}
+                        {/* Overlay to close dropdown */}
+                        {showSubjectDropdown && (
+                            <div 
+                                style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 999 }} 
+                                onClick={() => setShowSubjectDropdown(false)}
+                            ></div>
+                        )}
                     </div>
+
                     <div className="filter-group">
                         <label>Type</label>
                         <select value={filters.type} onChange={e => handleFilterChange('type', e.target.value)}>
@@ -152,7 +219,6 @@ const Table = ({
                                 {allColumns.filter(col => visibleColumns.includes(col.id)).map(col => (
                                     <th key={col.id}>{col.label}</th>
                                 ))}
-                                <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -160,6 +226,30 @@ const Table = ({
                                 <tr key={test.id}>
                                     {allColumns.filter(col => visibleColumns.includes(col.id)).map(col => {
                                         const isEditing = editingCell && editingCell.testId === test.id && editingCell.field === col.id;
+                                        
+                                        if (col.id === 'actions') {
+                                            return (
+                                                <td key={col.id}>
+                                                    <div style={{ display: 'flex', gap: '8px' }}>
+                                                        <button 
+                                                            className="btn btn-secondary" 
+                                                            onClick={(e) => { e.stopPropagation(); onEdit(test); }}
+                                                            style={{ padding: '6px 12px', minWidth: 'auto', fontSize: '12px' }}
+                                                        >
+                                                            Edit
+                                                        </button>
+                                                        <button 
+                                                            className="btn btn-secondary" 
+                                                            onClick={(e) => { e.stopPropagation(); onDelete(test.id); }}
+                                                            style={{ padding: '6px 12px', minWidth: 'auto', color: 'var(--danger)', borderColor: 'var(--danger)', fontSize: '12px' }}
+                                                        >
+                                                            Delete
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                            );
+                                        }
+
                                         return (
                                             <td key={col.id} onClick={() => !col.locked && setEditingCell({ testId: test.id, field: col.id })} style={{ cursor: col.locked ? 'default' : 'pointer' }}>
                                                 {isEditing ? (
@@ -182,24 +272,6 @@ const Table = ({
                                             </td>
                                         );
                                     })}
-                                    <td>
-                                        <div style={{ display: 'flex', gap: '8px' }}>
-                                            <button 
-                                                className="btn btn-secondary" 
-                                                onClick={(e) => { e.stopPropagation(); onEdit(test); }}
-                                                style={{ padding: '6px 12px', minWidth: 'auto', fontSize: '12px' }}
-                                            >
-                                                Edit
-                                            </button>
-                                            <button 
-                                                className="btn btn-secondary" 
-                                                onClick={(e) => { e.stopPropagation(); onDelete(test.id); }}
-                                                style={{ padding: '6px 12px', minWidth: 'auto', color: 'var(--danger)', borderColor: 'var(--danger)', fontSize: '12px' }}
-                                            >
-                                                Delete
-                                            </button>
-                                        </div>
-                                    </td>
                                 </tr>
                             ))}
                         </tbody>

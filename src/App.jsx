@@ -114,7 +114,7 @@ function App() {
     const [tests, setTests] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-    const [filters, setFilters] = useState({ platform: '', subject: '', type: '', status: '', search: '', startDate: '', endDate: '' });
+    const [filters, setFilters] = useState({ platform: '', subject: [], type: '', status: '', search: '', startDate: '', endDate: '' });
     const [editingCell, setEditingCell] = useState(null);
     const [showEditModal, setShowEditModal] = useState(false);
     const [editingTest, setEditingTest] = useState(null);
@@ -154,6 +154,7 @@ function App() {
         { id: 'percentMarks', label: '% Marks', default: true },
         { id: 'percentile', label: 'Percentile', default: false },
         { id: 'rank', label: 'Rank', default: false },
+        { id: 'total_students', label: 'Total Students', default: false },
         { id: 'actions', label: 'Actions', default: true, locked: true }
     ];
 
@@ -321,7 +322,9 @@ function App() {
     const filteredTests = useMemo(() => {
         return tests.filter(test => {
             if (filters.platform && test.platform !== filters.platform) return false;
-            if (filters.subject && test.subject !== filters.subject) return false;
+            if (filters.platform && test.platform !== filters.platform) return false;
+            if (filters.subject && filters.subject.length > 0 && !filters.subject.includes(test.subject)) return false;
+            if (filters.type && test.type !== filters.type) return false;
             if (filters.type && test.type !== filters.type) return false;
             if (filters.status && test.status !== filters.status) return false;
             if (filters.search && !test.name.toLowerCase().includes(filters.search.toLowerCase())) return false;
@@ -377,7 +380,7 @@ function App() {
     };
 
     const clearFilters = () => {
-        setFilters({ platform: '', subject: '', type: '', status: '', search: '', startDate: '', endDate: '' });
+        setFilters({ platform: '', subject: [], type: '', status: '', search: '', startDate: '', endDate: '' });
     };
 
     const pickRandomTest = () => {
@@ -915,6 +918,14 @@ function App() {
                             <input type="number" value={newTest.time} onChange={e => setNewTest({...newTest, time: e.target.value})} />
                         </div>
                         <div className="form-group">
+                            <label>Rank</label>
+                            <input type="number" value={newTest.rank} onChange={e => setNewTest({...newTest, rank: e.target.value})} />
+                        </div>
+                        <div className="form-group">
+                            <label>Total Students</label>
+                            <input type="number" value={newTest.total_students} onChange={e => setNewTest({...newTest, total_students: e.target.value})} />
+                        </div>
+                        <div className="form-group">
                             <label>Status</label>
                             <select value={newTest.status} onChange={e => setNewTest({...newTest, status: e.target.value})}>
                                 <option value="Not Started">Not Started</option>
@@ -960,6 +971,10 @@ function App() {
                             <div className="form-group">
                                 <label>Rank</label>
                                 <input type="number" value={editingTest.rank} onChange={e => setEditingTest({...editingTest, rank: e.target.value})} />
+                            </div>
+                            <div className="form-group">
+                                <label>Total Students</label>
+                                <input type="number" value={editingTest.total_students || ''} onChange={e => setEditingTest({...editingTest, total_students: e.target.value})} />
                             </div>
                             <div className="form-group">
                                 <label>Percentile</label>

@@ -10,7 +10,7 @@ const Sidebar = ({ currentView, setCurrentView, toggleDark, settings, onSignOut,
                 <div className="logo-icon">
                     <span className="material-icons">school</span>
                 </div>
-                <span className="logo-text">Applify.</span>
+                <span className="logo-text">GTM</span>
             </div>
 
             <nav className="sidebar-nav">
