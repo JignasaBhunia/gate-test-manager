@@ -97,7 +97,7 @@ function App() {
     const [tests, setTests] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-    const [filters, setFilters] = useState({ platform: '', subject: '', type: '', status: '', search: '' });
+    const [filters, setFilters] = useState({ platform: '', subject: '', type: '', status: '', search: '', startDate: '', endDate: '' });
     const [editingCell, setEditingCell] = useState(null);
     const [showEditModal, setShowEditModal] = useState(false);
     const [editingTest, setEditingTest] = useState(null);
@@ -125,10 +125,10 @@ function App() {
         { id: 'platform', label: 'Platform', default: true },
         { id: 'name', label: 'Test Name', default: true },
         { id: 'subject', label: 'Subject', default: true },
-        { id: 'type', label: 'Type', default: false },
+        { id: 'type', label: 'Type', default: true },
         { id: 'questions', label: 'Q', default: false },
-        { id: 'marks', label: 'Marks', default: false },
-        { id: 'time', label: 'Time', default: false },
+        { id: 'marks', label: 'Marks', default: true },
+        { id: 'time', label: 'Time', default: true },
         { id: 'status', label: 'Status', default: true },
         { id: 'marks_obtained', label: 'Obtained', default: false },
         { id: 'potential_marks', label: 'Potential', default: false },
@@ -254,6 +254,16 @@ function App() {
             if (filters.type && test.type !== filters.type) return false;
             if (filters.status && test.status !== filters.status) return false;
             if (filters.search && !test.name.toLowerCase().includes(filters.search.toLowerCase())) return false;
+            if (filters.startDate) {
+                const testDate = new Date(test.date);
+                const start = new Date(filters.startDate);
+                if (testDate < start) return false;
+            }
+            if (filters.endDate) {
+                const testDate = new Date(test.date);
+                const end = new Date(filters.endDate);
+                if (testDate > end) return false;
+            }
             return true;
         });
     }, [tests, filters]);
@@ -267,11 +277,21 @@ function App() {
         // const notStarted = tests.filter(t => t.status === 'Not Started').length; // Removed: 'Not Started' is already in pendingStatuses
 
         const completedTests = tests.filter(t => t.marks_obtained !== undefined && t.marks_obtained !== null && t.marks_obtained !== '');
-        const avgScore = completedTests.length > 0
-            ? (completedTests.reduce((sum, t) => sum + (parseFloat(t.marks_obtained) || 0), 0) / completedTests.length).toFixed(1)
-            : '0.0';
+        
+        let avgPercent = '0.0';
+        if (completedTests.length > 0) {
+            const totalPercent = completedTests.reduce((sum, t) => {
+                const mGot = parseFloat(t.marks_obtained);
+                const mTot = parseFloat(t.marks);
+                let p = 0;
+                if (!isNaN(mGot) && !isNaN(mTot) && mTot > 0) p = (mGot / mTot) * 100;
+                else if (!isNaN(mGot)) p = mGot; // Fallback if total marks missing, assume marks_obtained is percent? Or just 0. safely 0 if unsure but logic above handles it.
+                return sum + p;
+            }, 0);
+            avgPercent = (totalPercent / completedTests.length).toFixed(1);
+        }
 
-        return { total, completed, pending, avgScore };
+        return { total, completed, pending, avgPercent };
     }, [tests]);
 
     const uniqueValues = useMemo(() => ({
@@ -286,7 +306,7 @@ function App() {
     };
 
     const clearFilters = () => {
-        setFilters({ platform: '', subject: '', type: '', status: '', search: '' });
+        setFilters({ platform: '', subject: '', type: '', status: '', search: '', startDate: '', endDate: '' });
     };
 
     const pickRandomTest = () => {
