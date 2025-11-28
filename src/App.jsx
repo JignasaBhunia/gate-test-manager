@@ -194,7 +194,7 @@ function App() {
 
     const loadFromManifest = (force = false) => {
         console.log('Loading data from manifest:', MANIFEST_URL);
-        fetch(MANIFEST_URL)
+        fetch(MANIFEST_URL + '?t=' + Date.now())
             .then(response => {
                 if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
                 return response.json();
@@ -751,7 +751,8 @@ function App() {
         if (confirm('Are you sure you want to RESET all data to the default seed? This will erase your local changes unless you have synced them.')) {
             setLoading(true);
             localStorage.removeItem(STORAGE_KEY);
-            loadFromManifest();
+            setTests([]); // Clear local state to ensure full reset
+            loadFromManifest(true);
             alert('Data reset to default seed (reloaded from server).');
         }
     };
