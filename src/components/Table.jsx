@@ -12,11 +12,20 @@ const Table = ({
     pickRandomTest,
     visibleColumns,
     toggleColumn,
-    allColumns
+    allColumns,
+    editingCell,
+    setEditingCell,
+    onCellEdit
 }) => {
     const [showColumnModal, setShowColumnModal] = React.useState(false);
 
-
+    const handleKeyDown = (e, testId, colId) => {
+        if (e.key === 'Enter') {
+            onCellEdit(testId, colId, e.target.value);
+        } else if (e.key === 'Escape') {
+            setEditingCell(null);
+        }
+    };
 
     return (
         <div>
@@ -138,36 +147,49 @@ const Table = ({
                         <tbody>
                             {tests.map(test => (
                                 <tr key={test.id}>
-                                    {allColumns.filter(col => visibleColumns.includes(col.id)).map(col => (
-                                        <td key={col.id}>
-                                            {col.id === 'status' ? (
-                                                <span style={{ 
-                                                    padding: '4px 12px', 
-                                                    borderRadius: '16px', 
-                                                    fontSize: '12px', 
-                                                    fontWeight: '500',
-                                                    backgroundColor: test.status === 'Completed' ? '#E8F5E9' : test.status === 'Pending' ? '#FFF3E0' : '#FFEBEE',
-                                                    color: test.status === 'Completed' ? '#1B5E20' : test.status === 'Pending' ? '#E65100' : '#B71C1C'
-                                                }}>
-                                                    {test[col.id]}
-                                                </span>
-                                            ) : (
-                                                test[col.id]
-                                            )}
-                                        </td>
-                                    ))}
+                                    {allColumns.filter(col => visibleColumns.includes(col.id)).map(col => {
+                                        const isEditing = editingCell && editingCell.testId === test.id && editingCell.field === col.id;
+                                        return (
+                                            <td key={col.id} onClick={() => !col.locked && setEditingCell({ testId: test.id, field: col.id })} style={{ cursor: col.locked ? 'default' : 'pointer' }}>
+                                                {isEditing ? (
+                                                    <input 
+                                                        autoFocus
+                                                        defaultValue={test[col.id]}
+                                                        onBlur={(e) => onCellEdit(test.id, col.id, e.target.value)}
+                                                        onKeyDown={(e) => handleKeyDown(e, test.id, col.id)}
+                                                        style={{ width: '100%', padding: '4px', border: '1px solid var(--md-sys-color-primary)', borderRadius: '4px' }}
+                                                    />
+                                                ) : (
+                                                    col.id === 'status' ? (
+                                                        <span style={{ 
+                                                            padding: '4px 12px', 
+                                                            borderRadius: '16px', 
+                                                            fontSize: '12px', 
+                                                            fontWeight: '500',
+                                                            backgroundColor: test.status === 'Completed' ? '#E8F5E9' : test.status === 'Pending' ? '#FFF3E0' : '#FFEBEE',
+                                                            color: test.status === 'Completed' ? '#1B5E20' : test.status === 'Pending' ? '#E65100' : '#B71C1C'
+                                                        }}>
+                                                            {test[col.id]}
+                                                        </span>
+                                                    ) : (
+                                                        test[col.id]
+                                                    )
+                                                )}
+                                            </td>
+                                        );
+                                    })}
                                     <td>
                                         <div style={{ display: 'flex', gap: '8px' }}>
                                             <button 
                                                 className="btn-secondary" 
-                                                onClick={() => onEdit(test)}
+                                                onClick={(e) => { e.stopPropagation(); onEdit(test); }}
                                                 style={{ padding: '6px 12px', minWidth: 'auto' }}
                                             >
                                                 Edit
                                             </button>
                                             <button 
                                                 className="btn-secondary" 
-                                                onClick={() => onDelete(test.id)}
+                                                onClick={(e) => { e.stopPropagation(); onDelete(test.id); }}
                                                 style={{ padding: '6px 12px', minWidth: 'auto', color: 'var(--md-sys-color-error)', borderColor: 'var(--md-sys-color-error)' }}
                                             >
                                                 Delete

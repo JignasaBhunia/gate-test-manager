@@ -180,6 +180,16 @@ function App() {
         });
     };
 
+    const handleCellEdit = (testId, field, value) => {
+        setTests(prev => deriveMetrics(prev.map(t => {
+            if (t.id === testId) {
+                return { ...t, [field]: value, updatedAt: Date.now() };
+            }
+            return t;
+        })));
+        setEditingCell(null);
+    };
+
 
     const loadFromManifest = () => {
         console.log('Loading data from manifest:', MANIFEST_URL);
@@ -749,364 +759,358 @@ function App() {
     };
 
 
-
     const Header = window.AppComponents?.Header || (() => null);
     const Table = window.AppComponents?.Table || (() => null);
     const Analytics = window.AppComponents?.Analytics || (() => null);
+    const Sidebar = window.AppComponents?.Sidebar || (() => null);
 
     return (
-        <div className="container">
-            <Header
-                openAddModal={openAddModal}
-                toggleDark={toggleDark}
-                settings={settings}
-                setShowSyncModal={setShowSyncModal}
-                user={user}
-                onSignIn={() => {
-                    if (!settings.firebaseConfig) { alert('Please configure Firebase in Sync settings first.'); setShowSyncModal(true); return; }
-                    try {
-                        const provider = new firebase.auth.GoogleAuthProvider();
-                        firebase.auth().signInWithPopup(provider).catch(err => {
-                            if (err.code === 'auth/configuration-not-found') {
-                                alert('Sign-in failed: Google Sign-In is not enabled in your Firebase Console.\n\nGo to Firebase Console > Authentication > Sign-in method, and enable "Google".');
-                            } else if (err.code === 'auth/unauthorized-domain') {
-                                alert('Sign-in failed: This domain is not authorized.\n\nGo to Firebase Console > Authentication > Settings > Authorized domains, and add this domain (e.g., localhost or your custom domain).');
-                            } else {
-                                alert('Sign-in failed: ' + err.message);
-                            }
-                        });
-                    } catch (e) { alert('Firebase not initialized. Open Sync settings to configure.'); setShowSyncModal(true); }
-                }}
-                onSignOut={() => { try { firebase.auth().signOut(); } catch (e) { } }}
+        <div className="app-layout">
+            <Sidebar 
                 currentView={currentView}
                 setCurrentView={setCurrentView}
-                onExport={handleExportJSON}
-                onImport={handleImportJSON}
-                onImportCSV={handleImportCSV}
-                onReset={handleResetData}
-                onBulkEdit={openBulkEdit}
+                toggleDark={toggleDark}
+                settings={settings}
+                onSignOut={() => { try { firebase.auth().signOut(); } catch (e) { } }}
+                user={user}
             />
-
-            {currentView === 'dashboard' ? (
-                <Table
-                    metrics={metrics}
-                    filters={filters}
-                    uniqueValues={uniqueValues}
-                    handleFilterChange={handleFilterChange}
-                    clearFilters={clearFilters}
-                    pickRandomTest={pickRandomTest}
-                    downloadCSV={downloadCSV}
-                    tests={filteredTests}
-                    editingCell={editingCell}
-                    setEditingCell={setEditingCell}
-                    handleCellEdit={handleCellEdit}
-                    updateTestStatus={updateTestStatus}
-                    onEdit={openEditModal}
-                    onDelete={deleteTest}
-                    visibleColumns={visibleColumns}
-                    toggleColumn={toggleColumn}
-                    allColumns={ALL_COLUMNS}
+            
+            <main className="main-content">
+                <Header
+                    openAddModal={openAddModal}
+                    settings={settings}
+                    setShowSyncModal={setShowSyncModal}
+                    user={user}
+                    onSignIn={() => {
+                        if (!settings.firebaseConfig) { alert('Please configure Firebase in Sync settings first.'); setShowSyncModal(true); return; }
+                        try {
+                            const provider = new firebase.auth.GoogleAuthProvider();
+                            firebase.auth().signInWithPopup(provider).catch(err => {
+                                if (err.code === 'auth/configuration-not-found') {
+                                    alert('Sign-in failed: Google Sign-In is not enabled in your Firebase Console.\n\nGo to Firebase Console > Authentication > Sign-in method, and enable "Google".');
+                                } else if (err.code === 'auth/unauthorized-domain') {
+                                    alert('Sign-in failed: This domain is not authorized.\n\nGo to Firebase Console > Authentication > Settings > Authorized domains, and add this domain (e.g., localhost or your custom domain).');
+                                } else {
+                                    alert('Sign-in failed: ' + err.message);
+                                }
+                            });
+                        } catch (e) { alert('Firebase not initialized. Open Sync settings to configure.'); setShowSyncModal(true); }
+                    }}
+                    onSignOut={() => { try { firebase.auth().signOut(); } catch (e) { } }}
+                    onExport={handleExportJSON}
+                    onImport={handleImportJSON}
+                    onImportCSV={handleImportCSV}
+                    onReset={handleResetData}
+                    onBulkEdit={openBulkEdit}
                 />
-            ) : (
-                <Analytics tests={tests} user={user} otherUsers={otherUsers} />
-            )}
 
-            {showBulkEditModal && (
-                <div className="modal active">
-                    <div className="modal-content" style={{ maxWidth: '800px' }}>
-                        <h2>Bulk Edit Data</h2>
-                        <p>Edit the CSV below to update marks and dates. Format: <code>id,name,marks_obtained,date</code></p>
-                        <textarea
-                            value={bulkEditContent}
-                            onChange={e => setBulkEditContent(e.target.value)}
-                            style={{ width: '100%', height: '400px', fontFamily: 'monospace', whiteSpace: 'pre' }}
-                        />
-                        <div className="modal-actions">
-                            <button className="btn-secondary" onClick={() => setShowBulkEditModal(false)}>Cancel</button>
-                            <button className="btn-primary" onClick={saveBulkEdit}>Apply Changes</button>
+                {currentView === 'dashboard' ? (
+                    <Table
+                        metrics={metrics}
+                        filters={filters}
+                        uniqueValues={uniqueValues}
+                        handleFilterChange={handleFilterChange}
+                        clearFilters={clearFilters}
+                        pickRandomTest={pickRandomTest}
+                        downloadCSV={downloadCSV}
+                        tests={filteredTests}
+                        editingCell={editingCell}
+                        setEditingCell={setEditingCell}
+                        onEdit={openEditModal}
+                        onDelete={deleteTest}
+                        visibleColumns={visibleColumns}
+                        toggleColumn={toggleColumn}
+                        allColumns={ALL_COLUMNS}
+                        onCellEdit={handleCellEdit}
+                    />
+                ) : (
+                    <Analytics tests={tests} />
+                )}
+            </main>
+
+            {/* Modals */}
+            <div className={`modal ${showAddModal ? 'active' : ''}`} onClick={(e) => { if(e.target.className.includes('modal')) setShowAddModal(false); }}>
+                <div className="modal-content">
+                    <h2>Add New Test</h2>
+                    <div className="form-grid">
+                        <div className="form-group">
+                            <label>Platform</label>
+                            <select 
+                                value={showNewPlatformInput ? 'Other' : newTest.platform} 
+                                onChange={e => {
+                                    if(e.target.value === 'Other') setShowNewPlatformInput(true);
+                                    else { setShowNewPlatformInput(false); setNewTest({...newTest, platform: e.target.value}); }
+                                }}
+                            >
+                                <option value="">Select Platform</option>
+                                {uniqueValues.platforms.map(p => <option key={p} value={p}>{p}</option>)}
+                                <option value="Other">Other (Add New)</option>
+                            </select>
+                            {showNewPlatformInput && (
+                                <input 
+                                    type="text" 
+                                    placeholder="Enter new platform" 
+                                    value={newTest.platformNew || ''} 
+                                    onChange={e => setNewTest({...newTest, platformNew: e.target.value})}
+                                />
+                            )}
+                        </div>
+                        <div className="form-group">
+                            <label>Subject</label>
+                            <select 
+                                value={showNewSubjectInput ? 'Other' : newTest.subject} 
+                                onChange={e => {
+                                    if(e.target.value === 'Other') setShowNewSubjectInput(true);
+                                    else { setShowNewSubjectInput(false); setNewTest({...newTest, subject: e.target.value}); }
+                                }}
+                            >
+                                <option value="">Select Subject</option>
+                                {uniqueValues.subjects.map(s => <option key={s} value={s}>{s}</option>)}
+                                <option value="Other">Other (Add New)</option>
+                            </select>
+                            {showNewSubjectInput && (
+                                <input 
+                                    type="text" 
+                                    placeholder="Enter new subject" 
+                                    value={newTest.subjectNew || ''} 
+                                    onChange={e => setNewTest({...newTest, subjectNew: e.target.value})}
+                                />
+                            )}
+                        </div>
+                        <div className="form-group full-width">
+                            <label>Test Name</label>
+                            <input type="text" value={newTest.name} onChange={e => setNewTest({...newTest, name: e.target.value})} placeholder="e.g. Full Length Test 1" />
+                        </div>
+                        <div className="form-group">
+                            <label>Date</label>
+                            <input type="date" value={newTest.date} onChange={e => setNewTest({...newTest, date: e.target.value})} />
+                        </div>
+                        <div className="form-group">
+                            <label>Type</label>
+                            <select 
+                                value={showNewTypeInput ? 'Other' : newTest.type} 
+                                onChange={e => {
+                                    if(e.target.value === 'Other') setShowNewTypeInput(true);
+                                    else { setShowNewTypeInput(false); setNewTest({...newTest, type: e.target.value}); }
+                                }}
+                            >
+                                <option value="">Select Type</option>
+                                {uniqueValues.types.map(t => <option key={t} value={t}>{t}</option>)}
+                                <option value="Other">Other (Add New)</option>
+                            </select>
+                            {showNewTypeInput && (
+                                <input 
+                                    type="text" 
+                                    placeholder="Enter new type" 
+                                    value={newTest.typeNew || ''} 
+                                    onChange={e => setNewTest({...newTest, typeNew: e.target.value})}
+                                />
+                            )}
+                        </div>
+                        <div className="form-group">
+                            <label>Total Marks</label>
+                            <input type="number" value={newTest.marks} onChange={e => setNewTest({...newTest, marks: e.target.value})} />
+                        </div>
+                        <div className="form-group">
+                            <label>Questions</label>
+                            <input type="number" value={newTest.questions} onChange={e => setNewTest({...newTest, questions: e.target.value})} />
+                        </div>
+                        <div className="form-group">
+                            <label>Time (mins)</label>
+                            <input type="number" value={newTest.time} onChange={e => setNewTest({...newTest, time: e.target.value})} />
+                        </div>
+                        <div className="form-group">
+                            <label>Status</label>
+                            <select value={newTest.status} onChange={e => setNewTest({...newTest, status: e.target.value})}>
+                                <option value="Not Started">Not Started</option>
+                                <option value="Test Given">Test Given</option>
+                                <option value="Analysis Pending">Analysis Pending</option>
+                                <option value="Analysis Done">Analysis Done</option>
+                                <option value="Completed">Completed</option>
+                            </select>
+                        </div>
+                        <div className="form-group full-width">
+                            <label>Syllabus / Topics</label>
+                            <textarea value={newTest.syllabus} onChange={e => setNewTest({...newTest, syllabus: e.target.value})} rows="2"></textarea>
+                        </div>
+                        <div className="form-group full-width">
+                            <label>Link</label>
+                            <input type="text" value={newTest.link} onChange={e => setNewTest({...newTest, link: e.target.value})} placeholder="https://..." />
                         </div>
                     </div>
+                    <div className="modal-actions">
+                        <button className="btn-secondary" onClick={() => setShowAddModal(false)}>Cancel</button>
+                        <button className="btn-primary" onClick={addNewTest}>Add Test</button>
+                    </div>
                 </div>
-            )}
-            {showEditModal && (
-                <div className="modal active">
-                    <div className="modal-content">
-                        <h2>Edit Test Details</h2>
+            </div>
+
+            <div className={`modal ${showEditModal ? 'active' : ''}`} onClick={(e) => { if(e.target.className.includes('modal')) setShowEditModal(false); }}>
+                <div className="modal-content">
+                    <h2>Edit Test</h2>
+                    {editingTest && (
                         <div className="form-grid">
                             <div className="form-group full-width">
                                 <label>Test Name</label>
-                                <input
-                                    type="text"
-                                    value={editingTest.name}
-                                    onChange={e => setEditingTest({ ...editingTest, name: e.target.value })}
-                                />
-                            </div>
-                            <div className="form-group">
-                                <label>Date</label>
-                                <input
-                                    type="date"
-                                    value={editingTest.date}
-                                    onChange={e => setEditingTest({ ...editingTest, date: e.target.value })}
-                                />
-                            </div>
-                            <div className="form-group">
-                                <label>Subject</label>
-                                <input
-                                    type="text"
-                                    value={editingTest.subject}
-                                    onChange={e => setEditingTest({ ...editingTest, subject: e.target.value })}
-                                />
-                            </div>
-                            <div className="form-group">
-                                <label>Type</label>
-                                <input
-                                    type="text"
-                                    value={editingTest.type}
-                                    onChange={e => setEditingTest({ ...editingTest, type: e.target.value })}
-                                />
-                            </div>
-                            <div className="form-group">
-                                <label>Questions</label>
-                                <input
-                                    type="number"
-                                    value={editingTest.questions}
-                                    onChange={e => setEditingTest({ ...editingTest, questions: e.target.value })}
-                                />
-                            </div>
-                            <div className="form-group">
-                                <label>Marks</label>
-                                <input
-                                    type="number"
-                                    value={editingTest.marks}
-                                    onChange={e => setEditingTest({ ...editingTest, marks: e.target.value })}
-                                />
+                                <input type="text" value={editingTest.name} onChange={e => setEditingTest({...editingTest, name: e.target.value})} />
                             </div>
                             <div className="form-group">
                                 <label>Marks Obtained</label>
-                                <input
-                                    type="number"
-                                    value={editingTest.marks_obtained}
-                                    onChange={e => setEditingTest({ ...editingTest, marks_obtained: e.target.value })}
-                                />
+                                <input type="number" value={editingTest.marks_obtained} onChange={e => setEditingTest({...editingTest, marks_obtained: e.target.value})} />
                             </div>
                             <div className="form-group">
-                                <label>Potential Marks</label>
-                                <input
-                                    type="number"
-                                    value={editingTest.potential_marks}
-                                    onChange={e => setEditingTest({ ...editingTest, potential_marks: e.target.value })}
-                                />
-                            </div>
-                            <div className="form-group">
-                                <label>Time (minutes)</label>
-                                <input
-                                    type="number"
-                                    value={editingTest.time}
-                                    onChange={e => setEditingTest({ ...editingTest, time: e.target.value })}
-                                />
-                            </div>
-                            <div className="form-group">
-                                <label>Percentile</label>
-                                <input
-                                    type="text"
-                                    value={editingTest.percentile || ''}
-                                    disabled
-                                    style={{ background: 'var(--md-sys-color-surface-variant)', opacity: 0.7 }}
-                                />
+                                <label>Total Marks</label>
+                                <input type="number" value={editingTest.marks} onChange={e => setEditingTest({...editingTest, marks: e.target.value})} />
                             </div>
                             <div className="form-group">
                                 <label>Rank</label>
-                                <input type="number" min="1" value={editingTest.rank || ''} onChange={e => setEditingTest({ ...editingTest, rank: e.target.value })} />
+                                <input type="number" value={editingTest.rank} onChange={e => setEditingTest({...editingTest, rank: e.target.value})} />
                             </div>
                             <div className="form-group">
-                                <label>Total Students</label>
-                                <input type="number" min="1" value={editingTest.total_students || editingTest.totalStudents || ''} onChange={e => setEditingTest({ ...editingTest, total_students: e.target.value })} />
+                                <label>Percentile</label>
+                                <input type="number" value={editingTest.percentile} onChange={e => setEditingTest({...editingTest, percentile: e.target.value})} />
                             </div>
-                            <div className="form-group full-width">
-                                <label>Link</label>
-                                <input
-                                    type="url"
-                                    value={editingTest.link}
-                                    onChange={e => setEditingTest({ ...editingTest, link: e.target.value })}
-                                />
-                            </div>
-                            <div className="form-group full-width">
-                                <label>Syllabus</label>
-                                <textarea
-                                    value={editingTest.syllabus}
-                                    onChange={e => setEditingTest({ ...editingTest, syllabus: e.target.value })}
-                                />
+                            <div className="form-group">
+                                <label>Status</label>
+                                <select value={editingTest.status} onChange={e => setEditingTest({...editingTest, status: e.target.value})}>
+                                    {uniqueValues.statuses.map(s => <option key={s} value={s}>{s}</option>)}
+                                </select>
                             </div>
                             <div className="form-group full-width">
                                 <label>Remarks</label>
-                                <textarea
-                                    value={editingTest.remarks}
-                                    onChange={e => setEditingTest({ ...editingTest, remarks: e.target.value })}
-                                />
+                                <textarea value={editingTest.remarks} onChange={e => setEditingTest({...editingTest, remarks: e.target.value})} rows="3"></textarea>
                             </div>
                         </div>
-                        <div className="modal-actions">
-                            <button className="btn-secondary" onClick={() => setShowEditModal(false)}>
-                                Cancel
-                            </button>
-                            <button className="btn-primary" onClick={saveEditedTest}>
-                                Save Changes
-                            </button>
-                        </div>
+                    )}
+                    <div className="modal-actions">
+                        <button className="btn-secondary" onClick={() => setShowEditModal(false)}>Cancel</button>
+                        <button className="btn-primary" onClick={saveEditedTest}>Save Changes</button>
                     </div>
                 </div>
-            )}
-            {showAddModal && (
-                <div className="modal active">
-                    <div className="modal-content">
-                        <h2>Add New Test</h2>
-                        <div className="form-grid">
-                            <div className="form-group full-width">
-                                <label>Test Name</label>
-                                <input type="text" value={newTest.name} onChange={e => setNewTest({ ...newTest, name: e.target.value })} />
-                            </div>
-                            <div className="form-group">
-                                <label>Platform</label>
-                                <div style={{ display: 'flex', gap: 8 }}>
-                                    <select value={newTest.platform} onChange={e => setNewTest({ ...newTest, platform: e.target.value })}>
-                                        <option value="">Select Platform</option>
-                                        {uniqueValues.platforms.map(p => <option key={p} value={p}>{p}</option>)}
-                                    </select>
-                                    <button className="btn-secondary" style={{ padding: '8px 10px' }} onClick={() => setShowNewPlatformInput(v => !v)}>+</button>
-                                </div>
-                                {showNewPlatformInput && (
-                                    <div style={{ marginTop: 8 }}>
-                                        <input placeholder="New platform name" value={newTest.platformNew} onChange={e => setNewTest({ ...newTest, platformNew: e.target.value })} />
-                                    </div>
-                                )}
-                            </div>
-                            <div className="form-group">
-                                <label>Subject</label>
-                                <div style={{ display: 'flex', gap: 8 }}>
-                                    <select value={newTest.subject} onChange={e => setNewTest({ ...newTest, subject: e.target.value })}>
-                                        <option value="">Select Subject</option>
-                                        {uniqueValues.subjects.map(s => <option key={s} value={s}>{s}</option>)}
-                                    </select>
-                                    <button className="btn-secondary" style={{ padding: '8px 10px' }} onClick={() => setShowNewSubjectInput(v => !v)}>+</button>
-                                </div>
-                                {showNewSubjectInput && (
-                                    <div style={{ marginTop: 8 }}>
-                                        <input placeholder="New subject" value={newTest.subjectNew} onChange={e => setNewTest({ ...newTest, subjectNew: e.target.value })} />
-                                    </div>
-                                )}
-                            </div>
-                            <div className="form-group">
-                                <label>Type</label>
-                                <div style={{ display: 'flex', gap: 8 }}>
-                                    <select value={newTest.type} onChange={e => setNewTest({ ...newTest, type: e.target.value })}>
-                                        <option value="">Select Type</option>
-                                        {uniqueValues.types.map(t => <option key={t} value={t}>{t}</option>)}
-                                    </select>
-                                    <button className="btn-secondary" style={{ padding: '8px 10px' }} onClick={() => setShowNewTypeInput(v => !v)}>+</button>
-                                </div>
-                                {showNewTypeInput && (
-                                    <div style={{ marginTop: 8 }}>
-                                        <input placeholder="New type" value={newTest.typeNew} onChange={e => setNewTest({ ...newTest, typeNew: e.target.value })} />
-                                    </div>
-                                )}
-                            </div>
-                            <div className="form-group"><label>Date</label><input type="date" value={newTest.date} onChange={e => setNewTest({ ...newTest, date: e.target.value })} /></div>
-                            <div className="form-group"><label>Questions</label><input type="number" value={newTest.questions} onChange={e => setNewTest({ ...newTest, questions: e.target.value })} /></div>
-                            <div className="form-group"><label>Marks</label><input type="number" value={newTest.marks} onChange={e => setNewTest({ ...newTest, marks: e.target.value })} /></div>
-                            <div className="form-group"><label>Time (minutes)</label><input type="number" value={newTest.time} onChange={e => setNewTest({ ...newTest, time: e.target.value })} /></div>
-                            <div className="form-group"><label>Rank</label><input type="number" min="1" value={newTest.rank} onChange={e => setNewTest({ ...newTest, rank: e.target.value })} /></div>
-                            <div className="form-group"><label>Total Students</label><input type="number" min="1" value={newTest.total_students} onChange={e => setNewTest({ ...newTest, total_students: e.target.value })} /></div>
-                            <div className="form-group full-width"><label>Remarks</label><textarea value={newTest.remarks} onChange={e => setNewTest({ ...newTest, remarks: e.target.value })} /></div>
+            </div>
+
+            <div className={`modal ${showSyncModal ? 'active' : ''}`} onClick={(e) => { if(e.target.className.includes('modal')) setShowSyncModal(false); }}>
+                <div className="modal-content">
+                    <h2>Sync Settings</h2>
+                    <p className="mb-4">Configure Firebase to sync your data across devices.</p>
+                    <div className="form-grid">
+                        <div className="form-group full-width">
+                            <label>API Key</label>
+                            <input type="text" value={firebaseForm.apiKey} onChange={e => setFirebaseForm({...firebaseForm, apiKey: e.target.value})} />
                         </div>
-                        <div className="modal-actions">
-                            <button className="btn-secondary" onClick={() => setShowAddModal(false)}>Cancel</button>
-                            <button className="btn-primary" onClick={addNewTest}>Add Test</button>
+                        <div className="form-group full-width">
+                            <label>Auth Domain</label>
+                            <input type="text" value={firebaseForm.authDomain} onChange={e => setFirebaseForm({...firebaseForm, authDomain: e.target.value})} />
+                        </div>
+                        <div className="form-group full-width">
+                            <label>Database URL</label>
+                            <input type="text" value={firebaseForm.databaseURL} onChange={e => setFirebaseForm({...firebaseForm, databaseURL: e.target.value})} />
+                        </div>
+                        <div className="form-group full-width">
+                            <label>Project ID</label>
+                            <input type="text" value={firebaseForm.projectId} onChange={e => setFirebaseForm({...firebaseForm, projectId: e.target.value})} />
+                        </div>
+                        <div className="form-group full-width">
+                            <label>Storage Bucket</label>
+                            <input type="text" value={firebaseForm.storageBucket} onChange={e => setFirebaseForm({...firebaseForm, storageBucket: e.target.value})} />
+                        </div>
+                        <div className="form-group full-width">
+                            <label>Messaging Sender ID</label>
+                            <input type="text" value={firebaseForm.messagingSenderId} onChange={e => setFirebaseForm({...firebaseForm, messagingSenderId: e.target.value})} />
+                        </div>
+                        <div className="form-group full-width">
+                            <label>App ID</label>
+                            <input type="text" value={firebaseForm.appId} onChange={e => setFirebaseForm({...firebaseForm, appId: e.target.value})} />
                         </div>
                     </div>
-                </div>
-            )}
-
-
-
-            {showRandomModal && (
-                <div className="modal active">
-                    <div className="modal-content">
-                        <h2>Pick a Random Test</h2>
-                        <div className="form-group">
-                            <label><input type="checkbox" checked={randomOptions.useCurrentFilters} onChange={e => setRandomOptions({ ...randomOptions, useCurrentFilters: e.target.checked })} /> Use current filters</label>
+                    <div className="modal-actions" style={{ justifyContent: 'space-between', marginTop: '24px' }}>
+                        <div>
+                            <button className="btn-secondary" onClick={testFirebaseConnection} style={{ marginRight: '8px' }}>Test Connection</button>
                         </div>
-                        {!randomOptions.useCurrentFilters && (
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                                <div className="form-group"><label>Platform</label>
-                                    <select value={randomOptions.platform} onChange={e => setRandomOptions({ ...randomOptions, platform: e.target.value })}>
-                                        <option value="">Any</option>
-                                        {uniqueValues.platforms.map(p => <option key={p} value={p}>{p}</option>)}
-                                    </select>
-                                </div>
-                                <div className="form-group"><label>Subject</label>
-                                    <select value={randomOptions.subject} onChange={e => setRandomOptions({ ...randomOptions, subject: e.target.value })}>
-                                        <option value="">Any</option>
-                                        {uniqueValues.subjects.map(s => <option key={s} value={s}>{s}</option>)}
-                                    </select>
-                                </div>
-                                <div className="form-group"><label>Type</label>
-                                    <select value={randomOptions.type} onChange={e => setRandomOptions({ ...randomOptions, type: e.target.value })}>
-                                        <option value="">Any</option>
-                                        {uniqueValues.types.map(t => <option key={t} value={t}>{t}</option>)}
-                                    </select>
-                                </div>
-                                <div className="form-group"><label>Status</label>
-                                    <select value={randomOptions.status} onChange={e => setRandomOptions({ ...randomOptions, status: e.target.value })}>
-                                        <option value="">Any</option>
-                                        {uniqueValues.statuses.map(s => <option key={s} value={s}>{s}</option>)}
-                                    </select>
-                                </div>
-                            </div>
-                        )}
-
-                        <div style={{ marginTop: 12 }}>
-                            <button className="btn-primary" onClick={performRandomPick}>Pick</button>
-                            <button className="btn-secondary" style={{ marginLeft: 8 }} onClick={() => { setShowRandomModal(false); setPickedRandom(null); }}>Close</button>
-                        </div>
-
-                        {pickedRandom && (
-                            <div style={{ marginTop: 12, background: 'var(--card)', padding: 12, borderRadius: 8 }}>
-                                <h3>{pickedRandom.name}</h3>
-                                <div><strong>Platform:</strong> {pickedRandom.platform}</div>
-                                <div><strong>Subject:</strong> {pickedRandom.subject}</div>
-                                <div style={{ marginTop: 8 }}>
-                                    <button className="btn-secondary" onClick={() => { openEditModal(pickedRandom); setShowRandomModal(false); }}>Open / Edit</button>
-                                    <button className="btn-primary" style={{ marginLeft: 8 }} onClick={() => { setTests(prev => prev.map(t => t.id === pickedRandom.id ? { ...t, status: 'Test Given', updatedAt: Date.now() } : t)); setShowRandomModal(false); }}>Mark as Given</button>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                </div>
-            )}
-
-            {showSyncModal && (
-                <div className="modal active">
-                    <div className="modal-content">
-                        <h2>Sync Configuration</h2>
-                        <p style={{ color: 'var(--muted)' }}>Paste your Firebase Web config below (create a Firebase project and enable Realtime Database if you want multi-device sync).</p>
-                        <div className="form-group"><label>apiKey</label><input value={firebaseForm.apiKey} onChange={e => setFirebaseForm({ ...firebaseForm, apiKey: e.target.value })} /></div>
-                        <div className="form-group"><label>authDomain</label><input value={firebaseForm.authDomain} onChange={e => setFirebaseForm({ ...firebaseForm, authDomain: e.target.value })} /></div>
-                        <div className="form-group"><label>databaseURL</label><input value={firebaseForm.databaseURL} onChange={e => setFirebaseForm({ ...firebaseForm, databaseURL: e.target.value })} /></div>
-                        <div className="form-group"><label>projectId</label><input value={firebaseForm.projectId} onChange={e => setFirebaseForm({ ...firebaseForm, projectId: e.target.value })} /></div>
-                        <div className="form-group"><label>appId</label><input value={firebaseForm.appId} onChange={e => setFirebaseForm({ ...firebaseForm, appId: e.target.value })} /></div>
-                        <div style={{ display: 'flex', gap: 12, marginTop: 12, flexWrap: 'wrap' }}>
+                        <div style={{ display: 'flex', gap: '8px' }}>
                             <button className="btn-secondary" onClick={() => setShowSyncModal(false)}>Close</button>
-                            <button className="btn-secondary" onClick={testFirebaseConnection}>Test Connection</button>
-                            <button className="btn-primary" onClick={saveSyncConfig}>Save Config</button>
+                            <button className="btn-secondary" onClick={saveSyncConfig}>Save Config</button>
                             <button className="btn-primary" onClick={saveAndEnableSync}>Save & Enable Sync</button>
-                            <button className="btn-secondary" onClick={toggleSyncEnabled}>{settings.syncEnabled ? 'Disable Sync' : 'Enable Sync'}</button>
+                        </div>
+                    </div>
+                    
+                    <div style={{ marginTop: '24px', borderTop: '1px solid var(--md-sys-color-outline)', paddingTop: '16px' }}>
+                        <div className="flex-between">
+                            <span>Sync Status: <strong>{settings.syncEnabled ? 'Enabled' : 'Disabled'}</strong></span>
+                            <button className="btn-secondary" onClick={toggleSyncEnabled}>
+                                {settings.syncEnabled ? 'Disable Sync' : 'Enable Sync'}
+                            </button>
                         </div>
                     </div>
                 </div>
-            )}
+            </div>
+
+            <div className={`modal ${showBulkEditModal ? 'active' : ''}`} onClick={(e) => { if(e.target.className.includes('modal')) setShowBulkEditModal(false); }}>
+                <div className="modal-content" style={{ maxWidth: '800px' }}>
+                    <h2>Bulk Edit</h2>
+                    <p className="mb-4">Paste CSV data here to update multiple tests. Format: <code>id,name,marks_obtained,date</code></p>
+                    <textarea 
+                        value={bulkEditContent} 
+                        onChange={e => setBulkEditContent(e.target.value)} 
+                        rows="15" 
+                        style={{ fontFamily: 'monospace', fontSize: '12px', whiteSpace: 'pre' }}
+                    ></textarea>
+                    <div className="modal-actions">
+                        <button className="btn-secondary" onClick={() => setShowBulkEditModal(false)}>Cancel</button>
+                        <button className="btn-primary" onClick={saveBulkEdit}>Apply Changes</button>
+                    </div>
+                </div>
+            </div>
+
+            <div className={`modal ${showRandomModal ? 'active' : ''}`} onClick={(e) => { if(e.target.className.includes('modal')) setShowRandomModal(false); }}>
+                <div className="modal-content">
+                    <h2>Pick Random Test</h2>
+                    {!pickedRandom ? (
+                        <>
+                            <div className="form-group">
+                                <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <input type="checkbox" checked={randomOptions.useCurrentFilters} onChange={e => setRandomOptions({...randomOptions, useCurrentFilters: e.target.checked})} style={{ width: 'auto' }} />
+                                    Use Current Dashboard Filters
+                                </label>
+                            </div>
+                            {!randomOptions.useCurrentFilters && (
+                                <div className="form-grid">
+                                    <div className="form-group">
+                                        <label>Platform</label>
+                                        <select value={randomOptions.platform} onChange={e => setRandomOptions({...randomOptions, platform: e.target.value})}>
+                                            <option value="">Any</option>
+                                            {uniqueValues.platforms.map(p => <option key={p} value={p}>{p}</option>)}
+                                        </select>
+                                    </div>
+                                    <div className="form-group">
+                                        <label>Subject</label>
+                                        <select value={randomOptions.subject} onChange={e => setRandomOptions({...randomOptions, subject: e.target.value})}>
+                                            <option value="">Any</option>
+                                            {uniqueValues.subjects.map(s => <option key={s} value={s}>{s}</option>)}
+                                        </select>
+                                    </div>
+                                </div>
+                            )}
+                            <div className="modal-actions">
+                                <button className="btn-secondary" onClick={() => setShowRandomModal(false)}>Cancel</button>
+                                <button className="btn-primary" onClick={performRandomPick}>Pick Random</button>
+                            </div>
+                        </>
+                    ) : (
+                        <div className="text-center">
+                            <span className="material-icons" style={{ fontSize: '48px', color: 'var(--md-sys-color-primary)', marginBottom: '16px' }}>casino</span>
+                            <h3>{pickedRandom.name}</h3>
+                            <p>{pickedRandom.platform} • {pickedRandom.subject}</p>
+                            <div className="modal-actions" style={{ justifyContent: 'center' }}>
+                                <button className="btn-secondary" onClick={() => setPickedRandom(null)}>Pick Another</button>
+                                <button className="btn-primary" onClick={() => { setShowRandomModal(false); openEditModal(pickedRandom); }}>Start / Edit</button>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            </div>
         </div>
     );
 }
-
 // expose App to global scope so the bootstrap script can render it
 window.App = App;

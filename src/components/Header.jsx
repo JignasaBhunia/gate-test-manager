@@ -1,12 +1,5 @@
-
-
 const Header = ({ 
     user, 
-    currentView, 
-    setCurrentView, 
-    toggleDark, 
-    settings, 
-    onSignOut, 
     openAddModal, 
     onSignIn, 
     setShowSyncModal,
@@ -14,43 +7,30 @@ const Header = ({
     onImport,
     onImportCSV,
     onReset,
-    onBulkEdit
+    onBulkEdit,
+    onSignOut
 }) => {
     return (
-        <header>
+        <div className="top-bar">
             <div>
-                <h1>GATE Test Manager</h1>
-                <div className="subtitle">Track and analyze your GATE CSE 2026 preparation progress</div>
+                <h1 className="page-title">Dashboard</h1>
+                <div className="subtitle">Welcome back, track your progress</div>
             </div>
-            <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
-                <button 
-                    className={currentView === 'dashboard' ? 'btn-primary' : 'btn-secondary'}
-                    onClick={() => setCurrentView('dashboard')}
-                >
-                    <span className="material-icons" style={{ fontSize: '18px' }}>dashboard</span>
-                    Dashboard
-                </button>
-                <button 
-                    className={currentView === 'analytics' ? 'btn-primary' : 'btn-secondary'}
-                    onClick={() => setCurrentView('analytics')}
-                >
-                    <span className="material-icons" style={{ fontSize: '18px' }}>analytics</span>
-                    Analytics
-                </button>
+            <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
                 <button className="btn-primary" onClick={openAddModal}>
-                    <span className="material-icons" style={{ fontSize: '18px' }}>add</span>
+                    <span className="material-icons">add</span>
                     Add Test
                 </button>
                 
                 <button className="btn-secondary" onClick={() => setShowSyncModal(true)}>
-                    <span className="material-icons" style={{ fontSize: '18px' }}>sync</span>
+                    <span className="material-icons">sync</span>
                     Sync
                 </button>
 
                 {/* Data Dropdown */}
                 <div className="dropdown">
                     <button className="btn-secondary">
-                        <span className="material-icons" style={{ fontSize: '18px' }}>dataset</span>
+                        <span className="material-icons">dataset</span>
                         Data
                     </button>
                     <div className="dropdown-menu">
@@ -69,34 +49,36 @@ const Header = ({
                             <span className="material-icons">edit_note</span> Bulk Edit
                         </button>
                         <div className="dropdown-divider"></div>
-                        <button className="dropdown-item" onClick={onReset} style={{ color: 'var(--md-sys-color-error)' }}>
-                            <span className="material-icons" style={{ color: 'var(--md-sys-color-error)' }}>restart_alt</span> Reset to Default
+                        <button className="dropdown-item" onClick={onReset} style={{ color: 'var(--danger)' }}>
+                            <span className="material-icons" style={{ color: 'var(--danger)' }}>restart_alt</span> Reset to Default
                         </button>
                     </div>
                 </div>
-
-                <button className="btn-secondary" onClick={toggleDark}>
-                    <span className="material-icons" style={{ fontSize: '18px' }}>{settings?.dark ? 'light_mode' : 'dark_mode'}</span>
-                    {settings?.dark ? 'Light' : 'Dark'}
-                </button>
                 
                 {user ? (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginLeft: '8px' }}>
-                        {user.photoURL && <img src={user.photoURL} alt="Profile" style={{ width: '32px', height: '32px', borderRadius: '50%' }} />}
-                        <span style={{ fontSize: '14px', fontWeight: '500' }}>{user.displayName}</span>
-                        <button className="btn-secondary" onClick={onSignOut} style={{ padding: '8px 16px' }}>Sign out</button>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginLeft: '12px', paddingLeft: '12px', borderLeft: '1px solid var(--border-color)' }}>
+                        {user.photoURL ? (
+                            <img src={user.photoURL} alt="Profile" style={{ width: '40px', height: '40px', borderRadius: '12px' }} />
+                        ) : (
+                            <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'var(--primary)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>
+                                {user.displayName ? user.displayName[0] : 'U'}
+                            </div>
+                        )}
+                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                            <span style={{ fontSize: '14px', fontWeight: '600' }}>{user.displayName}</span>
+                            <span style={{ fontSize: '12px', color: 'var(--text-secondary)', cursor: 'pointer' }} onClick={onSignOut}>Sign out</span>
+                        </div>
                     </div>
                 ) : (
                     <button className="btn-primary" onClick={onSignIn} style={{ marginLeft: '8px' }}>
-                        <span className="material-icons" style={{ fontSize: '18px' }}>login</span>
+                        <span className="material-icons">login</span>
                         Sign In
                     </button>
                 )}
             </div>
-        </header>
+        </div>
     );
 };
 
 window.AppComponents = window.AppComponents || {};
 window.AppComponents.Header = Header;
-
