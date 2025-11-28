@@ -1,4 +1,5 @@
 
+
 const Header = ({ 
     user, 
     currentView, 
@@ -11,6 +12,8 @@ const Header = ({
     setShowSyncModal,
     onExport,
     onImport,
+    onImportCSV,
+    onReset,
     onBulkEdit
 }) => {
     return (
@@ -44,29 +47,32 @@ const Header = ({
                     Sync
                 </button>
 
-                <div className="dropdown" style={{ position: 'relative', display: 'inline-block' }}>
+                {/* Data Dropdown */}
+                <div className="dropdown">
                     <button className="btn-secondary">
-                        <span className="material-icons" style={{ fontSize: '18px' }}>more_vert</span>
+                        <span className="material-icons" style={{ fontSize: '18px' }}>dataset</span>
                         Data
                     </button>
-                    <div className="dropdown-content" style={{ display: 'none', position: 'absolute', right: 0, backgroundColor: 'var(--surface)', boxShadow: '0 8px 16px rgba(0,0,0,0.2)', zIndex: 1, minWidth: '160px', borderRadius: '8px', padding: '8px' }}>
-                        <button className="btn-secondary" onClick={onExport} style={{ width: '100%', textAlign: 'left', marginBottom: '4px' }}>
-                            <span className="material-icons" style={{ fontSize: '18px', marginRight: '8px' }}>download</span>
-                            Export JSON
+                    <div className="dropdown-menu">
+                        <button className="dropdown-item" onClick={onExport}>
+                            <span className="material-icons">download</span> Export JSON
                         </button>
-                        <label className="btn-secondary" style={{ width: '100%', textAlign: 'left', display: 'flex', alignItems: 'center', cursor: 'pointer', marginBottom: '4px' }}>
-                            <span className="material-icons" style={{ fontSize: '18px', marginRight: '8px' }}>upload</span>
-                            Import JSON
-                            <input type="file" accept=".json" onChange={onImport} style={{ display: 'none' }} />
+                        <label className="dropdown-item">
+                            <span className="material-icons">upload</span> Import JSON
+                            <input type="file" accept=".json" style={{ display: 'none' }} onChange={onImport} />
                         </label>
-                        <button className="btn-secondary" onClick={onBulkEdit} style={{ width: '100%', textAlign: 'left' }}>
-                            <span className="material-icons" style={{ fontSize: '18px', marginRight: '8px' }}>edit_note</span>
-                            Bulk Edit
+                        <label className="dropdown-item">
+                            <span className="material-icons">table_view</span> Import CSV
+                            <input type="file" accept=".csv" style={{ display: 'none' }} onChange={onImportCSV} />
+                        </label>
+                        <button className="dropdown-item" onClick={onBulkEdit}>
+                            <span className="material-icons">edit_note</span> Bulk Edit
+                        </button>
+                        <div className="dropdown-divider"></div>
+                        <button className="dropdown-item" onClick={onReset} style={{ color: 'var(--md-sys-color-error)' }}>
+                            <span className="material-icons" style={{ color: 'var(--md-sys-color-error)' }}>restart_alt</span> Reset to Default
                         </button>
                     </div>
-                    <style>{`
-                        .dropdown:hover .dropdown-content { display: block !important; }
-                    `}</style>
                 </div>
 
                 <button className="btn-secondary" onClick={toggleDark}>
@@ -93,3 +99,4 @@ const Header = ({
 
 window.AppComponents = window.AppComponents || {};
 window.AppComponents.Header = Header;
+

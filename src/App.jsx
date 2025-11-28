@@ -43,6 +43,40 @@ function parseCSV(csv) {
 // Derive percent marks and percentile for each test.
 // If user supplies rank and total_students, percentile is computed from rank.
 // Otherwise percentile is computed from percent-marks distribution across tests.
+// CSV Parser
+function parseCSV(csvText) {
+    const lines = csvText.split(/\r?\n/).filter(l => l.trim());
+    if (lines.length < 2) return [];
+    const headers = lines[0].split(',').map(h => h.trim());
+    const result = [];
+    for (let i = 1; i < lines.length; i++) {
+        // Handle quoted strings (e.g. "Topic, Subtopic")
+        const row = [];
+        let inQuote = false;
+        let current = '';
+        for (let char of lines[i]) {
+            if (char === '"') {
+                inQuote = !inQuote;
+            } else if (char === ',' && !inQuote) {
+                row.push(current.trim());
+                current = '';
+            } else {
+                current += char;
+            }
+        }
+        row.push(current.trim());
+
+        if (row.length === headers.length) {
+            const obj = {};
+            headers.forEach((h, idx) => {
+                obj[h] = row[idx];
+            });
+            result.push(obj);
+        }
+    }
+    return result;
+}
+
 function deriveMetrics(arr) {
     try {
         if (!Array.isArray(arr)) return [];
@@ -680,6 +714,81 @@ function App() {
         );
     }
 
+    const handleImportJSON = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            try {
+                const imported = JSON.parse(event.target.result);
+                if (Array.isArray(imported)) {
+                    if (confirm(`Importing ${imported.length} tests. This will replace current data. Continue?`)) {
+                        setTests(deriveMetrics(imported));
+                        alert('Import successful!');
+                    }
+                } else {
+                    alert('Invalid JSON format: Expected an array of tests.');
+                }
+            } catch (err) {
+                alert('Failed to parse JSON: ' + err.message);
+            }
+        };
+        reader.readAsText(file);
+        e.target.value = ''; // reset input
+    };
+
+    const handleImportCSV = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            try {
+                const csv = event.target.result;
+                const parsed = parseCSV(csv);
+                if (parsed && parsed.length > 0) {
+                    if (confirm(`Importing ${parsed.length} tests from CSV. This will replace current data. Continue?`)) {
+                        setTests(deriveMetrics(parsed));
+                        alert('Import successful!');
+                    }
+                } else {
+                    alert('No valid data found in CSV.');
+                }
+            } catch (err) {
+                alert('Failed to parse CSV: ' + err.message);
+            }
+        };
+        reader.readAsText(file);
+        e.target.value = ''; // reset input
+    };
+
+    const handleResetData = () => {
+        if (confirm('Are you sure you want to RESET all data to the default seed? This will erase your local changes unless you have synced them.')) {
+            setLoading(true);
+            localStorage.removeItem(STORAGE_KEY);
+            // Re-fetch CSV
+            fetch(GITHUB_CSV_URL)
+                .then(response => response.text())
+                .then(csv => {
+                    const parsedTests = parseCSV(csv);
+                    setTests(deriveMetrics(parsedTests));
+                    setLoading(false);
+                    alert('Data reset to default seed.');
+                })
+                .catch(err => {
+                    console.error('Error reloading CSV:', err);
+                    setLoading(false);
+                    alert('Failed to reload default data.');
+                });
+        }
+    };
+
+    const openBulkEdit = () => {
+        const header = 'id,name,marks_obtained,date\n';
+        const rows = tests.map(t => `${t.id},"${t.name.replace(/"/g, '""')}",${t.marks_obtained || ''},${t.date || ''}`).join('\n');
+        setBulkEditContent(header + rows);
+        setShowBulkEditModal(true);
+    };
+
     const Header = window.AppComponents?.Header || (() => null);
     const Table = window.AppComponents?.Table || (() => null);
     const Analytics = window.AppComponents?.Analytics || (() => null);
@@ -712,6 +821,8 @@ function App() {
                 setCurrentView={setCurrentView}
                 onExport={handleExportJSON}
                 onImport={handleImportJSON}
+                onImportCSV={handleImportCSV}
+                onReset={handleResetData}
                 onBulkEdit={openBulkEdit}
             />
 
