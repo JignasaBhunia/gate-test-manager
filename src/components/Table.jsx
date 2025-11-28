@@ -19,6 +19,44 @@ const Table = ({
 }) => {
     const [showColumnModal, setShowColumnModal] = React.useState(false);
     const [showSubjectDropdown, setShowSubjectDropdown] = React.useState(false);
+    const [sortConfig, setSortConfig] = React.useState({ key: null, direction: 'asc' });
+
+    const requestSort = (key) => {
+        let direction = 'asc';
+        if (sortConfig.key === key && sortConfig.direction === 'asc') {
+            direction = 'desc';
+        }
+        setSortConfig({ key, direction });
+    };
+
+    const sortedTests = React.useMemo(() => {
+        let sortableTests = [...tests];
+        if (sortConfig.key !== null) {
+            sortableTests.sort((a, b) => {
+                let aValue = a[sortConfig.key];
+                let bValue = b[sortConfig.key];
+
+                // Handle numeric values
+                if (!isNaN(parseFloat(aValue)) && !isNaN(parseFloat(bValue))) {
+                    aValue = parseFloat(aValue);
+                    bValue = parseFloat(bValue);
+                } else {
+                    // Handle strings case-insensitively
+                    aValue = String(aValue || '').toLowerCase();
+                    bValue = String(bValue || '').toLowerCase();
+                }
+
+                if (aValue < bValue) {
+                    return sortConfig.direction === 'asc' ? -1 : 1;
+                }
+                if (aValue > bValue) {
+                    return sortConfig.direction === 'asc' ? 1 : -1;
+                }
+                return 0;
+            });
+        }
+        return sortableTests;
+    }, [tests, sortConfig]);
 
     const handleKeyDown = (e, testId, colId) => {
         if (e.key === 'Enter') {
@@ -217,12 +255,26 @@ const Table = ({
                         <thead>
                             <tr>
                                 {allColumns.filter(col => visibleColumns.includes(col.id)).map(col => (
-                                    <th key={col.id}>{col.label}</th>
+                                    <th 
+                                        key={col.id} 
+                                        onClick={() => col.id !== 'actions' && requestSort(col.id)}
+                                        style={{ cursor: col.id !== 'actions' ? 'pointer' : 'default', userSelect: 'none' }}
+                                        className={sortConfig.key === col.id ? `sorted-${sortConfig.direction}` : ''}
+                                    >
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                            {col.label}
+                                            {sortConfig.key === col.id && (
+                                                <span className="material-icons" style={{ fontSize: '14px' }}>
+                                                    {sortConfig.direction === 'asc' ? 'arrow_upward' : 'arrow_downward'}
+                                                </span>
+                                            )}
+                                        </div>
+                                    </th>
                                 ))}
                             </tr>
                         </thead>
                         <tbody>
-                            {tests.map(test => (
+                            {sortedTests.map(test => (
                                 <tr key={test.id}>
                                     {allColumns.filter(col => visibleColumns.includes(col.id)).map(col => {
                                         const isEditing = editingCell && editingCell.testId === test.id && editingCell.field === col.id;

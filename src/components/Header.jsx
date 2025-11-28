@@ -63,7 +63,7 @@ const Header = ({
                 {user ? (
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginLeft: '12px', paddingLeft: '12px', borderLeft: '1px solid var(--border-color)' }}>
                         {user.photoURL ? (
-                            <img src={user.photoURL} alt="Profile" style={{ width: '40px', height: '40px', borderRadius: '12px' }} />
+                            <img src={user.photoURL} alt="Profile" style={{ width: '40px', height: '40px', borderRadius: '12px', objectFit: 'cover' }} />
                         ) : (
                             <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'var(--primary)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>
                                 {user.displayName ? user.displayName[0] : 'U'}

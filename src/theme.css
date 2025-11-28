@@ -65,6 +65,11 @@ body {
   overflow-x: hidden;
 }
 
+img {
+  max-width: 100%;
+  height: auto;
+}
+
 /* Layout */
 .app-layout {
   display: flex;
@@ -229,6 +234,11 @@ th {
   font-weight: 600;
   font-size: 13px;
   border-bottom: 1px solid var(--border-color);
+  transition: background 0.2s;
+}
+
+th:hover {
+  background: var(--bg-hover);
 }
 
 td {
