@@ -1,7 +1,7 @@
 {
   "files": [
-    "data/go_classes.csv",
-    "data/made_easy.csv",
-    "data/gate_at_zeal.csv"
+    "public/data/go_classes.csv",
+    "public/data/made_easy.csv",
+    "public/data/gate_at_zeal.csv"
   ]
 }
