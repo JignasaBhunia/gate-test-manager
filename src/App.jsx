@@ -916,4 +916,3 @@ function App() {
 
 // expose App to global scope so the bootstrap script can render it
 window.App = App;
-window.App = App;
