@@ -205,7 +205,8 @@ function App() {
                     return;
                 }
                 const allTests = results.flat();
-                setTests(deriveMetrics(allTests));
+                // Merge with existing tests (manifest data overwrites local if IDs match, fixing broken seed data)
+                setTests(prev => deriveMetrics(mergeTests(prev, allTests)));
                 setLoading(false);
             })
             .catch(err => {
@@ -222,14 +223,14 @@ function App() {
             if (raw) setSettings(JSON.parse(raw));
         } catch (e) { console.warn('Could not parse settings', e); }
 
-        // Load tests from localStorage first, fallback to Manifest
+        // Load tests from localStorage first
         try {
             const raw = localStorage.getItem(STORAGE_KEY);
             if (raw) {
                 const local = JSON.parse(raw);
                 setTests(deriveMetrics(local));
                 setLoading(false);
-                return;
+                // Do NOT return; continue to loadFromManifest to ensure seed data is present/updated
             }
         } catch (e) {
             console.warn('Failed to read local storage', e);
