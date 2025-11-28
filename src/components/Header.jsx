@@ -1,5 +1,15 @@
 
-const Header = ({ user, currentView, setCurrentView, theme, toggleTheme, handleSignOut, setShowAddTestModal }) => {
+const Header = ({ 
+    user, 
+    currentView, 
+    setCurrentView, 
+    toggleDark, 
+    settings, 
+    onSignOut, 
+    openAddModal, 
+    onSignIn, 
+    setShowSyncModal 
+}) => {
     return (
         <header>
             <div>
@@ -21,21 +31,32 @@ const Header = ({ user, currentView, setCurrentView, theme, toggleTheme, handleS
                     <span className="material-icons" style={{ fontSize: '18px' }}>analytics</span>
                     Analytics
                 </button>
-                <button className="btn-primary" onClick={() => setShowAddTestModal(true)}>
+                <button className="btn-primary" onClick={openAddModal}>
                     <span className="material-icons" style={{ fontSize: '18px' }}>add</span>
                     Add Test
                 </button>
-                <button className="btn-secondary" onClick={toggleTheme}>
-                    <span className="material-icons" style={{ fontSize: '18px' }}>{theme === 'light' ? 'dark_mode' : 'light_mode'}</span>
-                    {theme === 'light' ? 'Dark' : 'Light'}
+                
+                <button className="btn-secondary" onClick={() => setShowSyncModal(true)}>
+                    <span className="material-icons" style={{ fontSize: '18px' }}>sync</span>
+                    Sync
+                </button>
+
+                <button className="btn-secondary" onClick={toggleDark}>
+                    <span className="material-icons" style={{ fontSize: '18px' }}>{settings?.dark ? 'light_mode' : 'dark_mode'}</span>
+                    {settings?.dark ? 'Light' : 'Dark'}
                 </button>
                 
-                {user && (
+                {user ? (
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginLeft: '8px' }}>
                         {user.photoURL && <img src={user.photoURL} alt="Profile" style={{ width: '32px', height: '32px', borderRadius: '50%' }} />}
                         <span style={{ fontSize: '14px', fontWeight: '500' }}>{user.displayName}</span>
-                        <button className="btn-secondary" onClick={handleSignOut} style={{ padding: '8px 16px' }}>Sign out</button>
+                        <button className="btn-secondary" onClick={onSignOut} style={{ padding: '8px 16px' }}>Sign out</button>
                     </div>
+                ) : (
+                    <button className="btn-primary" onClick={onSignIn} style={{ marginLeft: '8px' }}>
+                        <span className="material-icons" style={{ fontSize: '18px' }}>login</span>
+                        Sign In
+                    </button>
                 )}
             </div>
         </header>
