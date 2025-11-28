@@ -202,7 +202,7 @@ function App() {
             .then(manifest => {
                 if (!manifest.files || !Array.isArray(manifest.files)) throw new Error('Invalid manifest format');
                 const promises = manifest.files.map(file => 
-                    fetch(file).then(r => {
+                    fetch(file + '?t=' + Date.now()).then(r => {
                         if (!r.ok) throw new Error(`Failed to load ${file}`);
                         return r.text();
                     }).then(parseCSV)
