@@ -8,7 +8,10 @@ const Header = ({
     onSignOut, 
     openAddModal, 
     onSignIn, 
-    setShowSyncModal 
+    setShowSyncModal,
+    onExport,
+    onImport,
+    onBulkEdit
 }) => {
     return (
         <header>
@@ -40,6 +43,31 @@ const Header = ({
                     <span className="material-icons" style={{ fontSize: '18px' }}>sync</span>
                     Sync
                 </button>
+
+                <div className="dropdown" style={{ position: 'relative', display: 'inline-block' }}>
+                    <button className="btn-secondary">
+                        <span className="material-icons" style={{ fontSize: '18px' }}>more_vert</span>
+                        Data
+                    </button>
+                    <div className="dropdown-content" style={{ display: 'none', position: 'absolute', right: 0, backgroundColor: 'var(--surface)', boxShadow: '0 8px 16px rgba(0,0,0,0.2)', zIndex: 1, minWidth: '160px', borderRadius: '8px', padding: '8px' }}>
+                        <button className="btn-secondary" onClick={onExport} style={{ width: '100%', textAlign: 'left', marginBottom: '4px' }}>
+                            <span className="material-icons" style={{ fontSize: '18px', marginRight: '8px' }}>download</span>
+                            Export JSON
+                        </button>
+                        <label className="btn-secondary" style={{ width: '100%', textAlign: 'left', display: 'flex', alignItems: 'center', cursor: 'pointer', marginBottom: '4px' }}>
+                            <span className="material-icons" style={{ fontSize: '18px', marginRight: '8px' }}>upload</span>
+                            Import JSON
+                            <input type="file" accept=".json" onChange={onImport} style={{ display: 'none' }} />
+                        </label>
+                        <button className="btn-secondary" onClick={onBulkEdit} style={{ width: '100%', textAlign: 'left' }}>
+                            <span className="material-icons" style={{ fontSize: '18px', marginRight: '8px' }}>edit_note</span>
+                            Bulk Edit
+                        </button>
+                    </div>
+                    <style>{`
+                        .dropdown:hover .dropdown-content { display: block !important; }
+                    `}</style>
+                </div>
 
                 <button className="btn-secondary" onClick={toggleDark}>
                     <span className="material-icons" style={{ fontSize: '18px' }}>{settings?.dark ? 'light_mode' : 'dark_mode'}</span>

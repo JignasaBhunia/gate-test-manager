@@ -111,6 +111,8 @@ function App() {
     const [selectedCompareUsers, setSelectedCompareUsers] = useState([]);
     const firebaseRef = useRef(null);
     const applyingRemote = useRef(false);
+    const hasLoadedRemote = useRef(false); // Track if we've loaded data from firebase
+    const isInitialSync = useRef(false); // Track if we are in the initial sync phase (waiting for first pull)
     const [currentView, setCurrentView] = useState('dashboard'); // 'dashboard' | 'analytics'
     const [showRandomModal, setShowRandomModal] = useState(false);
     const [pickedRandom, setPickedRandom] = useState(null);
@@ -190,6 +192,11 @@ function App() {
                 return response.text();
             })
             .then(csv => {
+                // If we have already loaded remote data (e.g. fast firebase auth), DO NOT overwrite with CSV
+                if (hasLoadedRemote.current) {
+                    console.log('Ignoring CSV load because remote data already loaded');
+                    return;
+                }
                 const parsedTests = parseCSV(csv);
                 setTests(deriveMetrics(parsedTests));
                 setLoading(false);
@@ -211,6 +218,11 @@ function App() {
         try { localStorage.setItem(STORAGE_KEY, JSON.stringify(tests)); } catch (e) { console.warn('Could not save tests locally', e); }
 
         if ((settings.syncEnabled || user) && firebaseRef.current && !applyingRemote.current) {
+            // Prevent overwriting remote data if we are still in the initial sync phase (haven't pulled yet)
+            if (isInitialSync.current) {
+                console.log('Skipping sync push: Initial sync in progress');
+                return;
+            }
             try {
                 const uid = firebaseRef.current.uid;
                 firebase.database().ref(`users/${uid}/tests`).set(tests);
@@ -234,6 +246,8 @@ function App() {
                 if (u) {
                     setUser(u);
                     firebaseRef.current = { uid: u.uid };
+                    isInitialSync.current = true; // Mark as initial sync started
+                    
                     // write basic public profile (opt-in)
                     try {
                         firebase.database().ref(`users/${u.uid}/profile`).update({ displayName: u.displayName || null, email: u.email || null, photoURL: u.photoURL || null, lastSeen: Date.now() });
@@ -243,7 +257,12 @@ function App() {
                     const dbRef = firebase.database().ref(`users/${u.uid}/tests`);
                     dbRef.on('value', snap => {
                         const remote = snap.val();
+                        // We received a value (null or data), so initial sync check is done
+                        isInitialSync.current = false;
+                        
                         if (!remote) return;
+                        
+                        hasLoadedRemote.current = true;
                         applyingRemote.current = true;
                         setTests(deriveMetrics(remote));
                         setTimeout(() => { applyingRemote.current = false; }, 300);
@@ -251,6 +270,8 @@ function App() {
                 } else {
                     setUser(null);
                     firebaseRef.current = null;
+                    isInitialSync.current = false;
+                    hasLoadedRemote.current = false;
                 }
             });
         } catch (e) { console.warn('Firebase init error', e); }
@@ -463,6 +484,83 @@ function App() {
         setShowSyncModal(false);
     };
 
+    // Import / Export / Bulk Edit
+    const [showBulkEditModal, setShowBulkEditModal] = useState(false);
+    const [bulkEditContent, setBulkEditContent] = useState('');
+
+    const handleExportJSON = () => {
+        const dataStr = JSON.stringify(tests, null, 2);
+        const blob = new Blob([dataStr], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'gate_tests_backup.json';
+        a.click();
+        window.URL.revokeObjectURL(url);
+    };
+
+    const handleImportJSON = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            try {
+                const imported = JSON.parse(event.target.result);
+                if (Array.isArray(imported)) {
+                    if (confirm(`Importing ${imported.length} tests. This will replace current data. Continue?`)) {
+                        setTests(deriveMetrics(imported));
+                        alert('Import successful!');
+                    }
+                } else {
+                    alert('Invalid JSON format: Expected an array of tests.');
+                }
+            } catch (err) {
+                alert('Failed to parse JSON: ' + err.message);
+            }
+        };
+        reader.readAsText(file);
+        e.target.value = ''; // reset input
+    };
+
+    const openBulkEdit = () => {
+        // Prepare CSV-like content for editing: ID, Name, Marks Obtained, Date
+        // Or just JSON? JSON is safer for structure. Let's use JSON for now as it's robust.
+        // User asked for "Bulk Edit" to paste data from Excel. CSV is better for Excel copy-paste.
+        // Let's try a simple CSV format: ID, Name, Marks Obtained, Date
+        const header = 'id,name,marks_obtained,date\n';
+        const rows = tests.map(t => `${t.id},"${t.name.replace(/"/g, '""')}",${t.marks_obtained || ''},${t.date || ''}`).join('\n');
+        setBulkEditContent(header + rows);
+        setShowBulkEditModal(true);
+    };
+
+    const saveBulkEdit = () => {
+        // Parse the CSV content
+        const lines = bulkEditContent.trim().split('\n');
+        const header = lines[0].split(','); // assume standard order
+        // We only update matching IDs
+        const updates = {};
+        lines.slice(1).forEach(line => {
+            // Simple CSV split (doesn't handle commas in quotes perfectly without a lib, but sufficient for simple bulk edits)
+            // For robustness, let's assume user won't break the format too much or we use a regex.
+            // Regex for CSV split: /,(?=(?:(?:[^"]*"){2})*[^"]*$)/
+            const cols = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(s => s.replace(/^"|"$/g, '').replace(/""/g, '"'));
+            if (cols[0]) {
+                updates[cols[0]] = {
+                    marks_obtained: cols[2],
+                    date: cols[3]
+                };
+            }
+        });
+
+        setTests(prev => deriveMetrics(prev.map(t => {
+            if (updates[t.id]) {
+                return { ...t, ...updates[t.id], updatedAt: Date.now() };
+            }
+            return t;
+        })));
+        setShowBulkEditModal(false);
+    };
+
     const testFirebaseConnection = async () => {
         if (!window.firebase) {
             alert('Firebase SDK not loaded (network issue).');
@@ -612,6 +710,9 @@ function App() {
                 onSignOut={() => { try { firebase.auth().signOut(); } catch (e) { } }}
                 currentView={currentView}
                 setCurrentView={setCurrentView}
+                onExport={handleExportJSON}
+                onImport={handleImportJSON}
+                onBulkEdit={openBulkEdit}
             />
 
             {currentView === 'dashboard' ? (
@@ -638,6 +739,23 @@ function App() {
                 <Analytics tests={tests} user={user} otherUsers={otherUsers} />
             )}
 
+            {showBulkEditModal && (
+                <div className="modal active">
+                    <div className="modal-content" style={{ maxWidth: '800px' }}>
+                        <h2>Bulk Edit Data</h2>
+                        <p>Edit the CSV below to update marks and dates. Format: <code>id,name,marks_obtained,date</code></p>
+                        <textarea
+                            value={bulkEditContent}
+                            onChange={e => setBulkEditContent(e.target.value)}
+                            style={{ width: '100%', height: '400px', fontFamily: 'monospace', whiteSpace: 'pre' }}
+                        />
+                        <div className="modal-actions">
+                            <button className="btn-secondary" onClick={() => setShowBulkEditModal(false)}>Cancel</button>
+                            <button className="btn-primary" onClick={saveBulkEdit}>Apply Changes</button>
+                        </div>
+                    </div>
+                </div>
+            )}
             {showEditModal && (
                 <div className="modal active">
                     <div className="modal-content">
