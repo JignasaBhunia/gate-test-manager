@@ -235,41 +235,6 @@ function App() {
                     setUser(u);
                     firebaseRef.current = { uid: u.uid };
                     // write basic public profile (opt-in)
-                    try {
-                        firebase.database().ref(`users/${u.uid}/profile`).update({ displayName: u.displayName || null, email: u.email || null, photoURL: u.photoURL || null, lastSeen: Date.now() });
-                    } catch (e) { console.warn('profile write failed', e); }
-
-                    // listen to user's tests
-                    const dbRef = firebase.database().ref(`users/${u.uid}/tests`);
-                    dbRef.on('value', snap => {
-                        const remote = snap.val();
-                        if (!remote) return;
-                        applyingRemote.current = true;
-                        setTests(deriveMetrics(remote));
-                        setTimeout(() => { applyingRemote.current = false; }, 300);
-                    });
-                } else {
-                    setUser(null);
-                    firebaseRef.current = null;
-                }
-            });
-        } catch (e) { console.warn('Firebase init error', e); }
-    }, [settings.firebaseConfig]);
-
-    const filteredTests = useMemo(() => {
-        return tests.filter(test => {
-            if (filters.platform && test.platform !== filters.platform) return false;
-            if (filters.subject && test.subject !== filters.subject) return false;
-            if (filters.type && test.type !== filters.type) return false;
-            if (filters.status && test.status !== filters.status) return false;
-            if (filters.search && !test.name.toLowerCase().includes(filters.search.toLowerCase())) return false;
-            if (filters.startDate) {
-                const testDate = new Date(test.date);
-                const start = new Date(filters.startDate);
-                if (testDate < start) return false;
-            }
-            if (filters.endDate) {
-                const testDate = new Date(test.date);
                 const end = new Date(filters.endDate);
                 if (testDate > end) return false;
             }
@@ -582,6 +547,81 @@ function App() {
         );
     }
 
+    const handleImportJSON = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            try {
+                const imported = JSON.parse(event.target.result);
+                if (Array.isArray(imported)) {
+                    if (confirm(`Importing ${imported.length} tests. This will replace current data. Continue?`)) {
+                        setTests(deriveMetrics(imported));
+                        alert('Import successful!');
+                    }
+                } else {
+                    alert('Invalid JSON format: Expected an array of tests.');
+                }
+            } catch (err) {
+                alert('Failed to parse JSON: ' + err.message);
+            }
+        };
+        reader.readAsText(file);
+        e.target.value = ''; // reset input
+    };
+
+    const handleImportCSV = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            try {
+                const csv = event.target.result;
+                const parsed = parseCSV(csv);
+                if (parsed && parsed.length > 0) {
+                    if (confirm(`Importing ${parsed.length} tests from CSV. This will replace current data. Continue?`)) {
+                        setTests(deriveMetrics(parsed));
+                        alert('Import successful!');
+                    }
+                } else {
+                    alert('No valid data found in CSV.');
+                }
+            } catch (err) {
+                alert('Failed to parse CSV: ' + err.message);
+            }
+        };
+        reader.readAsText(file);
+        e.target.value = ''; // reset input
+    };
+
+    const handleResetData = () => {
+        if (confirm('Are you sure you want to RESET all data to the default seed? This will erase your local changes unless you have synced them.')) {
+            setLoading(true);
+            localStorage.removeItem(STORAGE_KEY);
+            // Re-fetch CSV
+            fetch(GITHUB_CSV_URL)
+                .then(response => response.text())
+                .then(csv => {
+                    const parsedTests = parseCSV(csv);
+                    setTests(deriveMetrics(parsedTests));
+                    setLoading(false);
+                    alert('Data reset to default seed.');
+                })
+                .catch(err => {
+                    console.error('Error reloading CSV:', err);
+                    setLoading(false);
+                    alert('Failed to reload default data.');
+                });
+        }
+    };
+
+    const openBulkEdit = () => {
+        const header = 'id,name,marks_obtained,date\n';
+        const rows = tests.map(t => `${t.id},"${t.name.replace(/"/g, '""')}",${t.marks_obtained || ''},${t.date || ''}`).join('\n');
+        setBulkEditContent(header + rows);
+        setShowBulkEditModal(true);
+    };
+
     const Header = window.AppComponents?.Header || (() => null);
     const Table = window.AppComponents?.Table || (() => null);
     const Analytics = window.AppComponents?.Analytics || (() => null);
@@ -612,6 +652,11 @@ function App() {
                 onSignOut={() => { try { firebase.auth().signOut(); } catch (e) { } }}
                 currentView={currentView}
                 setCurrentView={setCurrentView}
+                onExport={handleExportJSON}
+                onImport={handleImportJSON}
+                onImportCSV={handleImportCSV}
+                onReset={handleResetData}
+                onBulkEdit={openBulkEdit}
             />
 
             {currentView === 'dashboard' ? (
