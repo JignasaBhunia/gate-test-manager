@@ -2,7 +2,7 @@ const { useState, useEffect, useMemo, useRef } = React;
 
 // Load CSV from GitHub - FIXED: pointing to main branch
 // Load data from local manifest
-const MANIFEST_URL = 'data/manifest.json';
+const MANIFEST_URL = 'public/data/manifest.json';
 const STORAGE_KEY = 'gate_tests_v1';
 const SETTINGS_KEY = 'gate_tests_settings_v1';
 
