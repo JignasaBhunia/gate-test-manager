@@ -623,13 +623,13 @@ function App() {
                     clearFilters={clearFilters}
                     pickRandomTest={pickRandomTest}
                     downloadCSV={downloadCSV}
-                    filteredTests={filteredTests}
+                    tests={filteredTests}
                     editingCell={editingCell}
                     setEditingCell={setEditingCell}
                     handleCellEdit={handleCellEdit}
                     updateTestStatus={updateTestStatus}
-                    openEditModal={openEditModal}
-                    deleteTest={deleteTest}
+                    onEdit={openEditModal}
+                    onDelete={deleteTest}
                     visibleColumns={visibleColumns}
                     toggleColumn={toggleColumn}
                     allColumns={ALL_COLUMNS}

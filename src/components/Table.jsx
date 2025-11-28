@@ -1,6 +1,6 @@
 
 const Table = ({ 
-    tests, 
+    tests = [], 
     onEdit, 
     onDelete, 
     filters, 
@@ -11,17 +11,12 @@ const Table = ({
     downloadCSV, 
     pickRandomTest,
     visibleColumns,
-    setVisibleColumns,
+    toggleColumn,
     allColumns
 }) => {
     const [showColumnModal, setShowColumnModal] = React.useState(false);
 
-    const toggleColumn = (colId) => {
-        const newCols = visibleColumns.includes(colId)
-            ? visibleColumns.filter(id => id !== colId)
-            : [...visibleColumns, colId];
-        setVisibleColumns(newCols);
-    };
+
 
     return (
         <div>
