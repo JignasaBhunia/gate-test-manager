@@ -10,34 +10,7 @@ const SETTINGS_KEY = 'gate_tests_settings_v1';
 // We now try to load it from window.GATE_APP_CONFIG (defined in src/config.js) to keep it separate.
 const DEFAULT_FIREBASE_CONFIG = (window.GATE_APP_CONFIG && window.GATE_APP_CONFIG.firebaseConfig) || null;
 
-function parseCSV(csv) {
-    const lines = csv.trim().split('\n');
-    const headers = lines[0].split(',');
 
-    return lines.slice(1).map(line => {
-        const values = [];
-        let current = '';
-        let inQuotes = false;
-
-        for (let char of line) {
-            if (char === '"') {
-                inQuotes = !inQuotes;
-            } else if (char === ',' && !inQuotes) {
-                values.push(current.trim());
-                current = '';
-            } else {
-                current += char;
-            }
-        }
-        values.push(current.trim());
-
-        const obj = {};
-        headers.forEach((header, i) => {
-            obj[header.trim()] = values[i] || '';
-        });
-        return obj;
-    });
-}
 
 // Compute percentile for each test based on marks_obtained / marks (as percentage)
 // Derive percent marks and percentile for each test.
@@ -714,28 +687,7 @@ function App() {
         );
     }
 
-    const handleImportJSON = (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-        const reader = new FileReader();
-        reader.onload = (event) => {
-            try {
-                const imported = JSON.parse(event.target.result);
-                if (Array.isArray(imported)) {
-                    if (confirm(`Importing ${imported.length} tests. This will replace current data. Continue?`)) {
-                        setTests(deriveMetrics(imported));
-                        alert('Import successful!');
-                    }
-                } else {
-                    alert('Invalid JSON format: Expected an array of tests.');
-                }
-            } catch (err) {
-                alert('Failed to parse JSON: ' + err.message);
-            }
-        };
-        reader.readAsText(file);
-        e.target.value = ''; // reset input
-    };
+
 
     const handleImportCSV = (e) => {
         const file = e.target.files[0];
@@ -782,12 +734,7 @@ function App() {
         }
     };
 
-    const openBulkEdit = () => {
-        const header = 'id,name,marks_obtained,date\n';
-        const rows = tests.map(t => `${t.id},"${t.name.replace(/"/g, '""')}",${t.marks_obtained || ''},${t.date || ''}`).join('\n');
-        setBulkEditContent(header + rows);
-        setShowBulkEditModal(true);
-    };
+
 
     const Header = window.AppComponents?.Header || (() => null);
     const Table = window.AppComponents?.Table || (() => null);
