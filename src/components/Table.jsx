@@ -19,8 +19,8 @@ window.AppComponents.Table = function Table(props) {
                     <div className="metric-value">{metrics.completed}</div>
                 </div>
                 <div className="metric-card average">
-                    <div className="metric-label">Average Score</div>
-                    <div className="metric-value">{metrics.avgScore}</div>
+                    <div className="metric-label">Average %</div>
+                    <div className="metric-value">{metrics.avgPercent}%</div>
                 </div>
             </div>
 
@@ -53,6 +53,31 @@ window.AppComponents.Table = function Table(props) {
                             <option value="">All Status</option>
                             {uniqueValues.statuses.map(s => <option key={s} value={s}>{s}</option>)}
                         </select>
+                    </div>
+                    <div className="filter-group">
+                        <label>Search</label>
+                        <input
+                            type="text"
+                            placeholder="Search tests..."
+                            value={filters.search}
+                            onChange={e => handleFilterChange('search', e.target.value)}
+                        />
+                    </div>
+                    <div className="filter-group">
+                        <label>From Date</label>
+                        <input
+                            type="date"
+                            value={filters.startDate}
+                            onChange={e => handleFilterChange('startDate', e.target.value)}
+                        />
+                    </div>
+                    <div className="filter-group">
+                        <label>To Date</label>
+                        <input
+                            type="date"
+                            value={filters.endDate}
+                            onChange={e => handleFilterChange('endDate', e.target.value)}
+                        />
                     </div>
                     <div className="filter-group">
                         <label>Search</label>
