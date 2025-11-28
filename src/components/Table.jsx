@@ -27,6 +27,17 @@ const Table = ({
         }
     };
 
+    const getStatusClass = (status) => {
+        switch (status) {
+            case 'Completed': return 'status-completed';
+            case 'Pending': return 'status-pending';
+            case 'Not Started': return 'status-not-started';
+            case 'Analysis Pending': return 'status-analysis-pending';
+            case 'Analysis Done': return 'status-analysis-done';
+            default: return 'status-pending';
+        }
+    };
+
     return (
         <div>
             {/* Metrics Grid */}
@@ -50,7 +61,7 @@ const Table = ({
             </div>
 
             {/* Controls & Filters */}
-            <div className="controls">
+            <div className="controls" style={{ marginBottom: '24px' }}>
                 <div className="filters-grid">
                     <div className="filter-group">
                         <label>Platform</label>
@@ -107,20 +118,20 @@ const Table = ({
                     </div>
                 </div>
 
-                <div className="actions">
-                    <button className="btn-primary" onClick={pickRandomTest}>
+                <div className="actions" style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                    <button className="btn btn-primary" onClick={pickRandomTest}>
                         <span className="material-icons" style={{ fontSize: '18px' }}>shuffle</span>
                         Pick Random
                     </button>
-                    <button className="btn-secondary" onClick={downloadCSV}>
+                    <button className="btn btn-secondary" onClick={downloadCSV}>
                         <span className="material-icons" style={{ fontSize: '18px' }}>download</span>
                         Download CSV
                     </button>
-                    <button className="btn-secondary" onClick={() => setShowColumnModal(true)}>
+                    <button className="btn btn-secondary" onClick={() => setShowColumnModal(true)}>
                         <span className="material-icons" style={{ fontSize: '18px' }}>view_column</span>
                         Columns
                     </button>
-                    <button className="btn-secondary" onClick={clearFilters}>
+                    <button className="btn btn-secondary" onClick={clearFilters}>
                         <span className="material-icons" style={{ fontSize: '18px' }}>clear_all</span>
                         Clear Filters
                     </button>
@@ -130,8 +141,8 @@ const Table = ({
             {/* Table */}
             <div className="table-container">
                 {tests.length === 0 ? (
-                    <div className="empty-state">
-                        <span className="material-icons" style={{ fontSize: '48px', color: 'var(--md-sys-color-outline)' }}>assignment</span>
+                    <div className="empty-state" style={{ padding: '48px', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                        <span className="material-icons" style={{ fontSize: '48px', color: 'var(--text-light)', marginBottom: '16px' }}>assignment</span>
                         <p>No tests found matching your filters.</p>
                     </div>
                 ) : (
@@ -153,22 +164,15 @@ const Table = ({
                                             <td key={col.id} onClick={() => !col.locked && setEditingCell({ testId: test.id, field: col.id })} style={{ cursor: col.locked ? 'default' : 'pointer' }}>
                                                 {isEditing ? (
                                                     <input 
+                                                        className="inline-edit-input"
                                                         autoFocus
                                                         defaultValue={test[col.id]}
                                                         onBlur={(e) => onCellEdit(test.id, col.id, e.target.value)}
                                                         onKeyDown={(e) => handleKeyDown(e, test.id, col.id)}
-                                                        style={{ width: '100%', padding: '4px', border: '1px solid var(--md-sys-color-primary)', borderRadius: '4px' }}
                                                     />
                                                 ) : (
                                                     col.id === 'status' ? (
-                                                        <span style={{ 
-                                                            padding: '4px 12px', 
-                                                            borderRadius: '16px', 
-                                                            fontSize: '12px', 
-                                                            fontWeight: '500',
-                                                            backgroundColor: test.status === 'Completed' ? '#E8F5E9' : test.status === 'Pending' ? '#FFF3E0' : '#FFEBEE',
-                                                            color: test.status === 'Completed' ? '#1B5E20' : test.status === 'Pending' ? '#E65100' : '#B71C1C'
-                                                        }}>
+                                                        <span className={`status-badge ${getStatusClass(test.status)}`}>
                                                             {test[col.id]}
                                                         </span>
                                                     ) : (
@@ -181,16 +185,16 @@ const Table = ({
                                     <td>
                                         <div style={{ display: 'flex', gap: '8px' }}>
                                             <button 
-                                                className="btn-secondary" 
+                                                className="btn btn-secondary" 
                                                 onClick={(e) => { e.stopPropagation(); onEdit(test); }}
-                                                style={{ padding: '6px 12px', minWidth: 'auto' }}
+                                                style={{ padding: '6px 12px', minWidth: 'auto', fontSize: '12px' }}
                                             >
                                                 Edit
                                             </button>
                                             <button 
-                                                className="btn-secondary" 
+                                                className="btn btn-secondary" 
                                                 onClick={(e) => { e.stopPropagation(); onDelete(test.id); }}
-                                                style={{ padding: '6px 12px', minWidth: 'auto', color: 'var(--md-sys-color-error)', borderColor: 'var(--md-sys-color-error)' }}
+                                                style={{ padding: '6px 12px', minWidth: 'auto', color: 'var(--danger)', borderColor: 'var(--danger)', fontSize: '12px' }}
                                             >
                                                 Delete
                                             </button>
@@ -207,21 +211,21 @@ const Table = ({
             <div className={`modal ${showColumnModal ? 'active' : ''}`} onClick={(e) => { if(e.target.className.includes('modal')) setShowColumnModal(false); }}>
                 <div className="modal-content">
                     <h2>Customize Columns</h2>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '24px' }}>
                         {allColumns.map(col => (
-                            <label key={col.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px', border: '1px solid var(--md-sys-color-outline)', borderRadius: '8px', cursor: 'pointer' }}>
+                            <label key={col.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px', border: '1px solid var(--border-color)', borderRadius: '8px', cursor: 'pointer', background: 'var(--bg-input)' }}>
                                 <input 
                                     type="checkbox" 
                                     checked={visibleColumns.includes(col.id)} 
                                     onChange={() => toggleColumn(col.id)}
-                                    style={{ width: 'auto' }}
+                                    style={{ width: 'auto', margin: 0 }}
                                 />
                                 {col.label}
                             </label>
                         ))}
                     </div>
                     <div className="modal-actions">
-                        <button className="btn-primary" onClick={() => setShowColumnModal(false)}>Done</button>
+                        <button className="btn btn-primary" onClick={() => setShowColumnModal(false)}>Done</button>
                     </div>
                 </div>
             </div>

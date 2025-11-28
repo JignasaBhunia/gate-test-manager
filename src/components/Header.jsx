@@ -14,24 +14,25 @@ const Header = ({
         <div className="top-bar">
             <div>
                 <h1 className="page-title">Dashboard</h1>
-                <div className="subtitle">Welcome back, track your progress</div>
+                <div className="subtitle" style={{ color: 'var(--text-secondary)', marginTop: '4px' }}>Welcome back, track your progress</div>
             </div>
             <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                <button className="btn-primary" onClick={openAddModal}>
+                <button className="btn btn-primary" onClick={openAddModal}>
                     <span className="material-icons">add</span>
                     Add Test
                 </button>
                 
-                <button className="btn-secondary" onClick={() => setShowSyncModal(true)}>
+                <button className="btn btn-secondary" onClick={() => setShowSyncModal(true)}>
                     <span className="material-icons">sync</span>
                     Sync
                 </button>
 
                 {/* Data Dropdown */}
                 <div className="dropdown">
-                    <button className="btn-secondary">
+                    <button className="btn btn-secondary">
                         <span className="material-icons">dataset</span>
                         Data
+                        <span className="material-icons" style={{ fontSize: '18px', marginLeft: '4px' }}>expand_more</span>
                     </button>
                     <div className="dropdown-menu">
                         <button className="dropdown-item" onClick={onExport}>
@@ -70,7 +71,7 @@ const Header = ({
                         </div>
                     </div>
                 ) : (
-                    <button className="btn-primary" onClick={onSignIn} style={{ marginLeft: '8px' }}>
+                    <button className="btn btn-primary" onClick={onSignIn} style={{ marginLeft: '8px' }}>
                         <span className="material-icons">login</span>
                         Sign In
                     </button>
