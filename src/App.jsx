@@ -111,6 +111,8 @@ function App() {
     const [selectedCompareUsers, setSelectedCompareUsers] = useState([]);
     const firebaseRef = useRef(null);
     const applyingRemote = useRef(false);
+    const hasLoadedRemote = useRef(false); // Track if we've loaded data from firebase
+    const isInitialSync = useRef(false); // Track if we are in the initial sync phase (waiting for first pull)
     const [currentView, setCurrentView] = useState('dashboard'); // 'dashboard' | 'analytics'
     const [showRandomModal, setShowRandomModal] = useState(false);
     const [pickedRandom, setPickedRandom] = useState(null);
@@ -190,6 +192,11 @@ function App() {
                 return response.text();
             })
             .then(csv => {
+                // If we have already loaded remote data (e.g. fast firebase auth), DO NOT overwrite with CSV
+                if (hasLoadedRemote.current) {
+                    console.log('Ignoring CSV load because remote data already loaded');
+                    return;
+                }
                 const parsedTests = parseCSV(csv);
                 setTests(deriveMetrics(parsedTests));
                 setLoading(false);
@@ -211,6 +218,11 @@ function App() {
         try { localStorage.setItem(STORAGE_KEY, JSON.stringify(tests)); } catch (e) { console.warn('Could not save tests locally', e); }
 
         if ((settings.syncEnabled || user) && firebaseRef.current && !applyingRemote.current) {
+            // Prevent overwriting remote data if we are still in the initial sync phase (haven't pulled yet)
+            if (isInitialSync.current) {
+                console.log('Skipping sync push: Initial sync in progress');
+                return;
+            }
             try {
                 const uid = firebaseRef.current.uid;
                 firebase.database().ref(`users/${uid}/tests`).set(tests);
@@ -234,6 +246,8 @@ function App() {
                 if (u) {
                     setUser(u);
                     firebaseRef.current = { uid: u.uid };
+                    isInitialSync.current = true; // Mark as initial sync started
+                    
                     // write basic public profile (opt-in)
                     try {
                         firebase.database().ref(`users/${u.uid}/profile`).update({ displayName: u.displayName || null, email: u.email || null, photoURL: u.photoURL || null, lastSeen: Date.now() });
@@ -243,7 +257,12 @@ function App() {
                     const dbRef = firebase.database().ref(`users/${u.uid}/tests`);
                     dbRef.on('value', snap => {
                         const remote = snap.val();
+                        // We received a value (null or data), so initial sync check is done
+                        isInitialSync.current = false;
+                        
                         if (!remote) return;
+                        
+                        hasLoadedRemote.current = true;
                         applyingRemote.current = true;
                         setTests(deriveMetrics(remote));
                         setTimeout(() => { applyingRemote.current = false; }, 300);
@@ -251,6 +270,8 @@ function App() {
                 } else {
                     setUser(null);
                     firebaseRef.current = null;
+                    isInitialSync.current = false;
+                    hasLoadedRemote.current = false;
                 }
             });
         } catch (e) { console.warn('Firebase init error', e); }
