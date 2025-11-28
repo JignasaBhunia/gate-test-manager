@@ -10,39 +10,46 @@ const SETTINGS_KEY = 'gate_tests_settings_v1';
 // We now try to load it from window.GATE_APP_CONFIG (defined in src/config.js) to keep it separate.
 const DEFAULT_FIREBASE_CONFIG = (window.GATE_APP_CONFIG && window.GATE_APP_CONFIG.firebaseConfig) || null;
 
-function parseCSV(csv) {
-    const lines = csv.trim().split('\n');
-    const headers = lines[0].split(',');
 
-    return lines.slice(1).map(line => {
-        const values = [];
-        let current = '';
-        let inQuotes = false;
-
-        for (let char of line) {
-            if (char === '"') {
-                inQuotes = !inQuotes;
-            } else if (char === ',' && !inQuotes) {
-                values.push(current.trim());
-                current = '';
-            } else {
-                current += char;
-            }
-        }
-        values.push(current.trim());
-
-        const obj = {};
-        headers.forEach((header, i) => {
-            obj[header.trim()] = values[i] || '';
-        });
-        return obj;
-    });
-}
 
 // Compute percentile for each test based on marks_obtained / marks (as percentage)
 // Derive percent marks and percentile for each test.
 // If user supplies rank and total_students, percentile is computed from rank.
 // Otherwise percentile is computed from percent-marks distribution across tests.
+// CSV Parser
+function parseCSV(csvText) {
+    const lines = csvText.split(/\r?\n/).filter(l => l.trim());
+    if (lines.length < 2) return [];
+    const headers = lines[0].split(',').map(h => h.trim());
+    const result = [];
+    for (let i = 1; i < lines.length; i++) {
+        // Handle quoted strings (e.g. "Topic, Subtopic")
+        const row = [];
+        let inQuote = false;
+        let current = '';
+        for (let char of lines[i]) {
+            if (char === '"') {
+                inQuote = !inQuote;
+            } else if (char === ',' && !inQuote) {
+                row.push(current.trim());
+                current = '';
+            } else {
+                current += char;
+            }
+        }
+        row.push(current.trim());
+
+        if (row.length === headers.length) {
+            const obj = {};
+            headers.forEach((h, idx) => {
+                obj[h] = row[idx];
+            });
+            result.push(obj);
+        }
+    }
+    return result;
+}
+
 function deriveMetrics(arr) {
     try {
         if (!Array.isArray(arr)) return [];
@@ -484,6 +491,83 @@ function App() {
         setShowSyncModal(false);
     };
 
+    // Import / Export / Bulk Edit
+    const [showBulkEditModal, setShowBulkEditModal] = useState(false);
+    const [bulkEditContent, setBulkEditContent] = useState('');
+
+    const handleExportJSON = () => {
+        const dataStr = JSON.stringify(tests, null, 2);
+        const blob = new Blob([dataStr], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'gate_tests_backup.json';
+        a.click();
+        window.URL.revokeObjectURL(url);
+    };
+
+    const handleImportJSON = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            try {
+                const imported = JSON.parse(event.target.result);
+                if (Array.isArray(imported)) {
+                    if (confirm(`Importing ${imported.length} tests. This will replace current data. Continue?`)) {
+                        setTests(deriveMetrics(imported));
+                        alert('Import successful!');
+                    }
+                } else {
+                    alert('Invalid JSON format: Expected an array of tests.');
+                }
+            } catch (err) {
+                alert('Failed to parse JSON: ' + err.message);
+            }
+        };
+        reader.readAsText(file);
+        e.target.value = ''; // reset input
+    };
+
+    const openBulkEdit = () => {
+        // Prepare CSV-like content for editing: ID, Name, Marks Obtained, Date
+        // Or just JSON? JSON is safer for structure. Let's use JSON for now as it's robust.
+        // User asked for "Bulk Edit" to paste data from Excel. CSV is better for Excel copy-paste.
+        // Let's try a simple CSV format: ID, Name, Marks Obtained, Date
+        const header = 'id,name,marks_obtained,date\n';
+        const rows = tests.map(t => `${t.id},"${t.name.replace(/"/g, '""')}",${t.marks_obtained || ''},${t.date || ''}`).join('\n');
+        setBulkEditContent(header + rows);
+        setShowBulkEditModal(true);
+    };
+
+    const saveBulkEdit = () => {
+        // Parse the CSV content
+        const lines = bulkEditContent.trim().split('\n');
+        const header = lines[0].split(','); // assume standard order
+        // We only update matching IDs
+        const updates = {};
+        lines.slice(1).forEach(line => {
+            // Simple CSV split (doesn't handle commas in quotes perfectly without a lib, but sufficient for simple bulk edits)
+            // For robustness, let's assume user won't break the format too much or we use a regex.
+            // Regex for CSV split: /,(?=(?:(?:[^"]*"){2})*[^"]*$)/
+            const cols = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(s => s.replace(/^"|"$/g, '').replace(/""/g, '"'));
+            if (cols[0]) {
+                updates[cols[0]] = {
+                    marks_obtained: cols[2],
+                    date: cols[3]
+                };
+            }
+        });
+
+        setTests(prev => deriveMetrics(prev.map(t => {
+            if (updates[t.id]) {
+                return { ...t, ...updates[t.id], updatedAt: Date.now() };
+            }
+            return t;
+        })));
+        setShowBulkEditModal(false);
+    };
+
     const testFirebaseConnection = async () => {
         if (!window.firebase) {
             alert('Firebase SDK not loaded (network issue).');
@@ -603,6 +687,55 @@ function App() {
         );
     }
 
+
+
+    const handleImportCSV = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            try {
+                const csv = event.target.result;
+                const parsed = parseCSV(csv);
+                if (parsed && parsed.length > 0) {
+                    if (confirm(`Importing ${parsed.length} tests from CSV. This will replace current data. Continue?`)) {
+                        setTests(deriveMetrics(parsed));
+                        alert('Import successful!');
+                    }
+                } else {
+                    alert('No valid data found in CSV.');
+                }
+            } catch (err) {
+                alert('Failed to parse CSV: ' + err.message);
+            }
+        };
+        reader.readAsText(file);
+        e.target.value = ''; // reset input
+    };
+
+    const handleResetData = () => {
+        if (confirm('Are you sure you want to RESET all data to the default seed? This will erase your local changes unless you have synced them.')) {
+            setLoading(true);
+            localStorage.removeItem(STORAGE_KEY);
+            // Re-fetch CSV
+            fetch(GITHUB_CSV_URL)
+                .then(response => response.text())
+                .then(csv => {
+                    const parsedTests = parseCSV(csv);
+                    setTests(deriveMetrics(parsedTests));
+                    setLoading(false);
+                    alert('Data reset to default seed.');
+                })
+                .catch(err => {
+                    console.error('Error reloading CSV:', err);
+                    setLoading(false);
+                    alert('Failed to reload default data.');
+                });
+        }
+    };
+
+
+
     const Header = window.AppComponents?.Header || (() => null);
     const Table = window.AppComponents?.Table || (() => null);
     const Analytics = window.AppComponents?.Analytics || (() => null);
@@ -633,6 +766,11 @@ function App() {
                 onSignOut={() => { try { firebase.auth().signOut(); } catch (e) { } }}
                 currentView={currentView}
                 setCurrentView={setCurrentView}
+                onExport={handleExportJSON}
+                onImport={handleImportJSON}
+                onImportCSV={handleImportCSV}
+                onReset={handleResetData}
+                onBulkEdit={openBulkEdit}
             />
 
             {currentView === 'dashboard' ? (
@@ -659,6 +797,23 @@ function App() {
                 <Analytics tests={tests} user={user} otherUsers={otherUsers} />
             )}
 
+            {showBulkEditModal && (
+                <div className="modal active">
+                    <div className="modal-content" style={{ maxWidth: '800px' }}>
+                        <h2>Bulk Edit Data</h2>
+                        <p>Edit the CSV below to update marks and dates. Format: <code>id,name,marks_obtained,date</code></p>
+                        <textarea
+                            value={bulkEditContent}
+                            onChange={e => setBulkEditContent(e.target.value)}
+                            style={{ width: '100%', height: '400px', fontFamily: 'monospace', whiteSpace: 'pre' }}
+                        />
+                        <div className="modal-actions">
+                            <button className="btn-secondary" onClick={() => setShowBulkEditModal(false)}>Cancel</button>
+                            <button className="btn-primary" onClick={saveBulkEdit}>Apply Changes</button>
+                        </div>
+                    </div>
+                </div>
+            )}
             {showEditModal && (
                 <div className="modal active">
                     <div className="modal-content">

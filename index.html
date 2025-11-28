@@ -1,3 +1,12 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GATE Test Manager</title>
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -10,71 +19,67 @@
     <!-- Chart.js Date Adapter -->
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
 
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     <style>
         :root {
-            /* Material Design 3 Color System (Purple/Violet based) */
-            --md-sys-color-primary: #6750A4;
+            /* Material Design 3 Color System (Blue based) */
+            --md-sys-color-primary: #005AC1;
             --md-sys-color-on-primary: #FFFFFF;
-            --md-sys-color-primary-container: #EADDFF;
-            --md-sys-color-on-primary-container: #21005D;
-            
-            --md-sys-color-secondary: #625B71;
+            --md-sys-color-primary-container: #D8E2FF;
+            --md-sys-color-on-primary-container: #001A41;
+            --md-sys-color-secondary: #575E71;
             --md-sys-color-on-secondary: #FFFFFF;
-            --md-sys-color-secondary-container: #E8DEF8;
-            --md-sys-color-on-secondary-container: #1D192B;
-            
-            --md-sys-color-tertiary: #7D5260;
+            --md-sys-color-secondary-container: #DBE2F9;
+            --md-sys-color-on-secondary-container: #141B2C;
+            --md-sys-color-tertiary: #715573;
             --md-sys-color-on-tertiary: #FFFFFF;
-            --md-sys-color-tertiary-container: #FFD8E4;
-            --md-sys-color-on-tertiary-container: #31111D;
-            
-            --md-sys-color-error: #B3261E;
+            --md-sys-color-tertiary-container: #FBD7FC;
+            --md-sys-color-on-tertiary-container: #29132D;
+            --md-sys-color-error: #BA1A1A;
             --md-sys-color-on-error: #FFFFFF;
-            
-            --md-sys-color-background: #FFFBFE;
-            --md-sys-color-on-background: #1C1B1F;
-            
-            --md-sys-color-surface: #FFFBFE;
-            --md-sys-color-on-surface: #1C1B1F;
-            --md-sys-color-surface-variant: #E7E0EC;
-            --md-sys-color-on-surface-variant: #49454F;
-            
-            --md-sys-color-outline: #79747E;
-            
+            --md-sys-color-error-container: #FFDAD6;
+            --md-sys-color-on-error-container: #410002;
+            --md-sys-color-background: #FEFBFF;
+            --md-sys-color-on-background: #1B1B1F;
+            --md-sys-color-surface: #FEFBFF;
+            --md-sys-color-on-surface: #1B1B1F;
+            --md-sys-color-surface-variant: #E1E2EC;
+            --md-sys-color-on-surface-variant: #44474F;
+            --md-sys-color-outline: #74777F;
             --md-sys-elevation-1: 0px 1px 3px 1px rgba(0, 0, 0, 0.15), 0px 1px 2px 0px rgba(0, 0, 0, 0.3);
             --md-sys-elevation-2: 0px 2px 6px 2px rgba(0, 0, 0, 0.15), 0px 1px 2px 0px rgba(0, 0, 0, 0.3);
             --md-sys-elevation-3: 0px 4px 8px 3px rgba(0, 0, 0, 0.15), 0px 1px 3px 0px rgba(0, 0, 0, 0.3);
         }
 
         body.dark {
-            --md-sys-color-primary: #D0BCFF;
-            --md-sys-color-on-primary: #381E72;
-            --md-sys-color-primary-container: #4F378B;
-            --md-sys-color-on-primary-container: #EADDFF;
-            
-            --md-sys-color-secondary: #CCC2DC;
-            --md-sys-color-on-secondary: #332D41;
-            --md-sys-color-secondary-container: #4A4458;
-            --md-sys-color-on-secondary-container: #E8DEF8;
-            
-            --md-sys-color-background: #1C1B1F;
-            --md-sys-color-on-background: #E6E1E5;
-            
-            --md-sys-color-surface: #1C1B1F;
-            --md-sys-color-on-surface: #E6E1E5;
-            --md-sys-color-surface-variant: #49454F;
-            --md-sys-color-on-surface-variant: #CAC4D0;
-            
-            --md-sys-color-outline: #938F99;
+            --md-sys-color-primary: #ADC6FF;
+            --md-sys-color-on-primary: #002E69;
+            --md-sys-color-primary-container: #004494;
+            --md-sys-color-on-primary-container: #D8E2FF;
+            --md-sys-color-secondary: #BFC6DC;
+            --md-sys-color-on-secondary: #293041;
+            --md-sys-color-secondary-container: #3F4759;
+            --md-sys-color-on-secondary-container: #DBE2F9;
+            --md-sys-color-tertiary: #DEBCDF;
+            --md-sys-color-on-tertiary: #402843;
+            --md-sys-color-tertiary-container: #583E5B;
+            --md-sys-color-on-tertiary-container: #FBD7FC;
+            --md-sys-color-error: #FFB4AB;
+            --md-sys-color-on-error: #690005;
+            --md-sys-color-error-container: #93000A;
+            --md-sys-color-on-error-container: #FFDAD6;
+            --md-sys-color-background: #1B1B1F;
+            --md-sys-color-on-background: #E3E2E6;
+            --md-sys-color-surface: #1B1B1F;
+            --md-sys-color-on-surface: #E3E2E6;
+            --md-sys-color-surface-variant: #44474F;
+            --md-sys-color-on-surface-variant: #C4C6D0;
+            --md-sys-color-outline: #8E9099;
+            --md-sys-elevation-1: 0px 1px 3px 1px rgba(0, 0, 0, 0.5), 0px 1px 2px 0px rgba(0, 0, 0, 0.6);
+            --md-sys-elevation-2: 0px 2px 6px 2px rgba(0, 0, 0, 0.5), 0px 1px 2px 0px rgba(0, 0, 0, 0.6);
+            --md-sys-elevation-3: 0px 4px 8px 3px rgba(0, 0, 0, 0.5), 0px 1px 3px 0px rgba(0, 0, 0, 0.6);
         }
 
         * {
-            margin: 0;
-            padding: 0;
             box-sizing: border-box;
         }
 
@@ -325,6 +330,68 @@
             gap: 8px;
             justify-content: flex-end;
             margin-top: 24px;
+        }
+
+        /* Dropdown Menu */
+        .dropdown {
+            position: relative;
+            display: inline-block;
+        }
+
+        .dropdown-menu {
+            display: none;
+            position: absolute;
+            right: 0;
+            top: 100%;
+            margin-top: 8px;
+            background-color: var(--md-sys-color-surface);
+            min-width: 200px;
+            box-shadow: var(--md-sys-elevation-2);
+            border-radius: 8px;
+            padding: 8px 0;
+            z-index: 10;
+            border: 1px solid var(--md-sys-color-surface-variant);
+        }
+
+        .dropdown:hover .dropdown-menu {
+            display: block;
+            animation: fadeIn 0.2s ease-out;
+        }
+
+        .dropdown-item {
+            display: flex;
+            align-items: center;
+            width: 100%;
+            padding: 12px 16px;
+            border: none;
+            background: none;
+            text-align: left;
+            cursor: pointer;
+            color: var(--md-sys-color-on-surface);
+            font-size: 14px;
+            transition: background-color 0.2s;
+            border-radius: 0;
+        }
+
+        .dropdown-item:hover {
+            background-color: var(--md-sys-color-surface-variant);
+        }
+
+        .dropdown-item .material-icons {
+            margin-right: 12px;
+            font-size: 20px;
+            color: var(--md-sys-color-on-surface-variant);
+        }
+
+        .dropdown-divider {
+            height: 1px;
+            background-color: var(--md-sys-color-surface-variant);
+            margin: 8px 0;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
         }
     </style>
 </head>

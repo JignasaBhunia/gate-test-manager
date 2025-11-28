@@ -1,4 +1,5 @@
 
+
 const Header = ({ 
     user, 
     currentView, 
@@ -8,7 +9,12 @@ const Header = ({
     onSignOut, 
     openAddModal, 
     onSignIn, 
-    setShowSyncModal 
+    setShowSyncModal,
+    onExport,
+    onImport,
+    onImportCSV,
+    onReset,
+    onBulkEdit
 }) => {
     return (
         <header>
@@ -41,6 +47,34 @@ const Header = ({
                     Sync
                 </button>
 
+                {/* Data Dropdown */}
+                <div className="dropdown">
+                    <button className="btn-secondary">
+                        <span className="material-icons" style={{ fontSize: '18px' }}>dataset</span>
+                        Data
+                    </button>
+                    <div className="dropdown-menu">
+                        <button className="dropdown-item" onClick={onExport}>
+                            <span className="material-icons">download</span> Export JSON
+                        </button>
+                        <label className="dropdown-item">
+                            <span className="material-icons">upload</span> Import JSON
+                            <input type="file" accept=".json" style={{ display: 'none' }} onChange={onImport} />
+                        </label>
+                        <label className="dropdown-item">
+                            <span className="material-icons">table_view</span> Import CSV
+                            <input type="file" accept=".csv" style={{ display: 'none' }} onChange={onImportCSV} />
+                        </label>
+                        <button className="dropdown-item" onClick={onBulkEdit}>
+                            <span className="material-icons">edit_note</span> Bulk Edit
+                        </button>
+                        <div className="dropdown-divider"></div>
+                        <button className="dropdown-item" onClick={onReset} style={{ color: 'var(--md-sys-color-error)' }}>
+                            <span className="material-icons" style={{ color: 'var(--md-sys-color-error)' }}>restart_alt</span> Reset to Default
+                        </button>
+                    </div>
+                </div>
+
                 <button className="btn-secondary" onClick={toggleDark}>
                     <span className="material-icons" style={{ fontSize: '18px' }}>{settings?.dark ? 'light_mode' : 'dark_mode'}</span>
                     {settings?.dark ? 'Light' : 'Dark'}
@@ -65,3 +99,4 @@ const Header = ({
 
 window.AppComponents = window.AppComponents || {};
 window.AppComponents.Header = Header;
+
