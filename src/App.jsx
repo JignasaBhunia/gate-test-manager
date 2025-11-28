@@ -1,7 +1,8 @@
 const { useState, useEffect, useMemo, useRef } = React;
 
 // Load CSV from GitHub - FIXED: pointing to main branch
-const GITHUB_CSV_URL = 'https://raw.githubusercontent.com/JignasaBhunia/gate-test-manager/main/tests_seed.csv';
+// Load data from local manifest
+const MANIFEST_URL = 'data/manifest.json';
 const STORAGE_KEY = 'gate_tests_v1';
 const SETTINGS_KEY = 'gate_tests_settings_v1';
 
@@ -100,6 +101,14 @@ function deriveMetrics(arr) {
     }
 }
 
+// Helper to merge tests: incoming overwrites existing by ID, adds new
+const mergeTests = (existing, incoming) => {
+    const map = new Map();
+    if (Array.isArray(existing)) existing.forEach(t => map.set(t.id, t));
+    if (Array.isArray(incoming)) incoming.forEach(t => map.set(t.id, t));
+    return Array.from(map.values());
+};
+
 function App() {
     const MAX_COMPARE_USERS = 5; // only allow comparing up to this many users (free tier/support constraint)
     const [tests, setTests] = useState([]);
@@ -172,6 +181,40 @@ function App() {
     };
 
 
+    const loadFromManifest = () => {
+        console.log('Loading data from manifest:', MANIFEST_URL);
+        fetch(MANIFEST_URL)
+            .then(response => {
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                return response.json();
+            })
+            .then(manifest => {
+                if (!manifest.files || !Array.isArray(manifest.files)) throw new Error('Invalid manifest format');
+                const promises = manifest.files.map(file => 
+                    fetch(file).then(r => {
+                        if (!r.ok) throw new Error(`Failed to load ${file}`);
+                        return r.text();
+                    }).then(parseCSV)
+                );
+                return Promise.all(promises);
+            })
+            .then(results => {
+                // If we have already loaded remote data (e.g. fast firebase auth), DO NOT overwrite
+                if (hasLoadedRemote.current) {
+                    console.log('Ignoring local data load because remote data already loaded');
+                    return;
+                }
+                const allTests = results.flat();
+                setTests(deriveMetrics(allTests));
+                setLoading(false);
+            })
+            .catch(err => {
+                console.error('Error loading data:', err);
+                setError(err.message);
+                setLoading(false);
+            });
+    };
+
     useEffect(() => {
         // load settings
         try {
@@ -179,7 +222,7 @@ function App() {
             if (raw) setSettings(JSON.parse(raw));
         } catch (e) { console.warn('Could not parse settings', e); }
 
-        // Load tests from localStorage first, fallback to CSV
+        // Load tests from localStorage first, fallback to Manifest
         try {
             const raw = localStorage.getItem(STORAGE_KEY);
             if (raw) {
@@ -192,27 +235,7 @@ function App() {
             console.warn('Failed to read local storage', e);
         }
 
-        console.log('Loading CSV from:', GITHUB_CSV_URL);
-        fetch(GITHUB_CSV_URL)
-            .then(response => {
-                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-                return response.text();
-            })
-            .then(csv => {
-                // If we have already loaded remote data (e.g. fast firebase auth), DO NOT overwrite with CSV
-                if (hasLoadedRemote.current) {
-                    console.log('Ignoring CSV load because remote data already loaded');
-                    return;
-                }
-                const parsedTests = parseCSV(csv);
-                setTests(deriveMetrics(parsedTests));
-                setLoading(false);
-            })
-            .catch(err => {
-                console.error('Error loading CSV:', err);
-                setError(err.message);
-                setLoading(false);
-            });
+        loadFromManifest();
     }, []);
 
     // Apply theme
@@ -506,28 +529,7 @@ function App() {
         window.URL.revokeObjectURL(url);
     };
 
-    const handleImportJSON = (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-        const reader = new FileReader();
-        reader.onload = (event) => {
-            try {
-                const imported = JSON.parse(event.target.result);
-                if (Array.isArray(imported)) {
-                    if (confirm(`Importing ${imported.length} tests. This will replace current data. Continue?`)) {
-                        setTests(deriveMetrics(imported));
-                        alert('Import successful!');
-                    }
-                } else {
-                    alert('Invalid JSON format: Expected an array of tests.');
-                }
-            } catch (err) {
-                alert('Failed to parse JSON: ' + err.message);
-            }
-        };
-        reader.readAsText(file);
-        e.target.value = ''; // reset input
-    };
+
 
     const openBulkEdit = () => {
         // Prepare CSV-like content for editing: ID, Name, Marks Obtained, Date
@@ -689,6 +691,29 @@ function App() {
 
 
 
+    const handleImportJSON = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            try {
+                const imported = JSON.parse(event.target.result);
+                if (Array.isArray(imported)) {
+                    if (confirm(`Importing ${imported.length} tests. This will MERGE with your current data (updating existing IDs, adding new ones). Continue?`)) {
+                        setTests(prev => deriveMetrics(mergeTests(prev, imported)));
+                        alert('Import successful!');
+                    }
+                } else {
+                    alert('Invalid JSON format: Expected an array of tests.');
+                }
+            } catch (err) {
+                alert('Failed to parse JSON: ' + err.message);
+            }
+        };
+        reader.readAsText(file);
+        e.target.value = ''; // reset input
+    };
+
     const handleImportCSV = (e) => {
         const file = e.target.files[0];
         if (!file) return;
@@ -698,8 +723,8 @@ function App() {
                 const csv = event.target.result;
                 const parsed = parseCSV(csv);
                 if (parsed && parsed.length > 0) {
-                    if (confirm(`Importing ${parsed.length} tests from CSV. This will replace current data. Continue?`)) {
-                        setTests(deriveMetrics(parsed));
+                    if (confirm(`Importing ${parsed.length} tests from CSV. This will MERGE with your current data. Continue?`)) {
+                        setTests(prev => deriveMetrics(mergeTests(prev, parsed)));
                         alert('Import successful!');
                     }
                 } else {
@@ -717,20 +742,8 @@ function App() {
         if (confirm('Are you sure you want to RESET all data to the default seed? This will erase your local changes unless you have synced them.')) {
             setLoading(true);
             localStorage.removeItem(STORAGE_KEY);
-            // Re-fetch CSV
-            fetch(GITHUB_CSV_URL)
-                .then(response => response.text())
-                .then(csv => {
-                    const parsedTests = parseCSV(csv);
-                    setTests(deriveMetrics(parsedTests));
-                    setLoading(false);
-                    alert('Data reset to default seed.');
-                })
-                .catch(err => {
-                    console.error('Error reloading CSV:', err);
-                    setLoading(false);
-                    alert('Failed to reload default data.');
-                });
+            loadFromManifest();
+            alert('Data reset to default seed (reloaded from server).');
         }
     };
 
@@ -818,116 +831,118 @@ function App() {
                 <div className="modal active">
                     <div className="modal-content">
                         <h2>Edit Test Details</h2>
-                        <div className="form-group">
-                            <label>Test Name</label>
-                            <input
-                                type="text"
-                                value={editingTest.name}
-                                onChange={e => setEditingTest({ ...editingTest, name: e.target.value })}
-                            />
-                        </div>
-                        <div className="form-group">
-                            <label>Date</label>
-                            <input
-                                type="date"
-                                value={editingTest.date}
-                                onChange={e => setEditingTest({ ...editingTest, date: e.target.value })}
-                            />
-                        </div>
-                        <div className="form-group">
-                            <label>Subject</label>
-                            <input
-                                type="text"
-                                value={editingTest.subject}
-                                onChange={e => setEditingTest({ ...editingTest, subject: e.target.value })}
-                            />
-                        </div>
-                        <div className="form-group">
-                            <label>Type</label>
-                            <input
-                                type="text"
-                                value={editingTest.type}
-                                onChange={e => setEditingTest({ ...editingTest, type: e.target.value })}
-                            />
-                        </div>
-                        <div className="form-group">
-                            <label>Questions</label>
-                            <input
-                                type="number"
-                                value={editingTest.questions}
-                                onChange={e => setEditingTest({ ...editingTest, questions: e.target.value })}
-                            />
-                        </div>
-                        <div className="form-group">
-                            <label>Marks</label>
-                            <input
-                                type="number"
-                                value={editingTest.marks}
-                                onChange={e => setEditingTest({ ...editingTest, marks: e.target.value })}
-                            />
-                        </div>
-                        <div className="form-group">
-                            <label>Marks Obtained</label>
-                            <input
-                                type="number"
-                                value={editingTest.marks_obtained}
-                                onChange={e => setEditingTest({ ...editingTest, marks_obtained: e.target.value })}
-                            />
-                        </div>
-                        <div className="form-group">
-                            <label>Potential Marks</label>
-                            <input
-                                type="number"
-                                value={editingTest.potential_marks}
-                                onChange={e => setEditingTest({ ...editingTest, potential_marks: e.target.value })}
-                            />
-                        </div>
-                        <div className="form-group">
-                            <label>Percentile (Calculated)</label>
-                            <input
-                                type="text"
-                                value={editingTest.percentile || ''}
-                                disabled
-                                style={{ background: 'var(--surface-variant)', opacity: 0.7 }}
-                            />
-                        </div>
-                        <div className="form-group">
-                            <label>Time (minutes)</label>
-                            <input
-                                type="number"
-                                value={editingTest.time}
-                                onChange={e => setEditingTest({ ...editingTest, time: e.target.value })}
-                            />
-                        </div>
-                        <div className="form-group">
-                            <label>Syllabus</label>
-                            <textarea
-                                value={editingTest.syllabus}
-                                onChange={e => setEditingTest({ ...editingTest, syllabus: e.target.value })}
-                            />
-                        </div>
-                        <div className="form-group">
-                            <label>Link</label>
-                            <input
-                                type="url"
-                                value={editingTest.link}
-                                onChange={e => setEditingTest({ ...editingTest, link: e.target.value })}
-                            />
-                        </div>
-                        <div className="form-group">
-                            <label>Remarks</label>
-                            <textarea
-                                value={editingTest.remarks}
-                                onChange={e => setEditingTest({ ...editingTest, remarks: e.target.value })}
-                            />
-                        </div>
-                        <div className="form-group">
-                            <label>Rank</label>
-                            <input type="number" min="1" value={editingTest.rank || ''} onChange={e => setEditingTest({ ...editingTest, rank: e.target.value })} />
-                        </div>
-                        <div className="form-group">
-                            <label>Total Students</label>
-                            <input type="number" min="1" value={editingTest.total_students || editingTest.totalStudents || ''} onChange={e => setEditingTest({ ...editingTest, total_students: e.target.value })} />
+                        <div className="form-grid">
+                            <div className="form-group full-width">
+                                <label>Test Name</label>
+                                <input
+                                    type="text"
+                                    value={editingTest.name}
+                                    onChange={e => setEditingTest({ ...editingTest, name: e.target.value })}
+                                />
+                            </div>
+                            <div className="form-group">
+                                <label>Date</label>
+                                <input
+                                    type="date"
+                                    value={editingTest.date}
+                                    onChange={e => setEditingTest({ ...editingTest, date: e.target.value })}
+                                />
+                            </div>
+                            <div className="form-group">
+                                <label>Subject</label>
+                                <input
+                                    type="text"
+                                    value={editingTest.subject}
+                                    onChange={e => setEditingTest({ ...editingTest, subject: e.target.value })}
+                                />
+                            </div>
+                            <div className="form-group">
+                                <label>Type</label>
+                                <input
+                                    type="text"
+                                    value={editingTest.type}
+                                    onChange={e => setEditingTest({ ...editingTest, type: e.target.value })}
+                                />
+                            </div>
+                            <div className="form-group">
+                                <label>Questions</label>
+                                <input
+                                    type="number"
+                                    value={editingTest.questions}
+                                    onChange={e => setEditingTest({ ...editingTest, questions: e.target.value })}
+                                />
+                            </div>
+                            <div className="form-group">
+                                <label>Marks</label>
+                                <input
+                                    type="number"
+                                    value={editingTest.marks}
+                                    onChange={e => setEditingTest({ ...editingTest, marks: e.target.value })}
+                                />
+                            </div>
+                            <div className="form-group">
+                                <label>Marks Obtained</label>
+                                <input
+                                    type="number"
+                                    value={editingTest.marks_obtained}
+                                    onChange={e => setEditingTest({ ...editingTest, marks_obtained: e.target.value })}
+                                />
+                            </div>
+                            <div className="form-group">
+                                <label>Potential Marks</label>
+                                <input
+                                    type="number"
+                                    value={editingTest.potential_marks}
+                                    onChange={e => setEditingTest({ ...editingTest, potential_marks: e.target.value })}
+                                />
+                            </div>
+                            <div className="form-group">
+                                <label>Time (minutes)</label>
+                                <input
+                                    type="number"
+                                    value={editingTest.time}
+                                    onChange={e => setEditingTest({ ...editingTest, time: e.target.value })}
+                                />
+                            </div>
+                            <div className="form-group">
+                                <label>Percentile</label>
+                                <input
+                                    type="text"
+                                    value={editingTest.percentile || ''}
+                                    disabled
+                                    style={{ background: 'var(--md-sys-color-surface-variant)', opacity: 0.7 }}
+                                />
+                            </div>
+                            <div className="form-group">
+                                <label>Rank</label>
+                                <input type="number" min="1" value={editingTest.rank || ''} onChange={e => setEditingTest({ ...editingTest, rank: e.target.value })} />
+                            </div>
+                            <div className="form-group">
+                                <label>Total Students</label>
+                                <input type="number" min="1" value={editingTest.total_students || editingTest.totalStudents || ''} onChange={e => setEditingTest({ ...editingTest, total_students: e.target.value })} />
+                            </div>
+                            <div className="form-group full-width">
+                                <label>Link</label>
+                                <input
+                                    type="url"
+                                    value={editingTest.link}
+                                    onChange={e => setEditingTest({ ...editingTest, link: e.target.value })}
+                                />
+                            </div>
+                            <div className="form-group full-width">
+                                <label>Syllabus</label>
+                                <textarea
+                                    value={editingTest.syllabus}
+                                    onChange={e => setEditingTest({ ...editingTest, syllabus: e.target.value })}
+                                />
+                            </div>
+                            <div className="form-group full-width">
+                                <label>Remarks</label>
+                                <textarea
+                                    value={editingTest.remarks}
+                                    onChange={e => setEditingTest({ ...editingTest, remarks: e.target.value })}
+                                />
+                            </div>
                         </div>
                         <div className="modal-actions">
                             <button className="btn-secondary" onClick={() => setShowEditModal(false)}>
@@ -944,62 +959,64 @@ function App() {
                 <div className="modal active">
                     <div className="modal-content">
                         <h2>Add New Test</h2>
-                        <div className="form-group">
-                            <label>Test Name</label>
-                            <input type="text" value={newTest.name} onChange={e => setNewTest({ ...newTest, name: e.target.value })} />
-                        </div>
-                        <div className="form-group">
-                            <label>Platform</label>
-                            <div style={{ display: 'flex', gap: 8 }}>
-                                <select value={newTest.platform} onChange={e => setNewTest({ ...newTest, platform: e.target.value })}>
-                                    <option value="">Select Platform</option>
-                                    {uniqueValues.platforms.map(p => <option key={p} value={p}>{p}</option>)}
-                                </select>
-                                <button className="btn-secondary" style={{ padding: '8px 10px' }} onClick={() => setShowNewPlatformInput(v => !v)}>{showNewPlatformInput ? 'Cancel' : 'Add New'}</button>
+                        <div className="form-grid">
+                            <div className="form-group full-width">
+                                <label>Test Name</label>
+                                <input type="text" value={newTest.name} onChange={e => setNewTest({ ...newTest, name: e.target.value })} />
                             </div>
-                            {showNewPlatformInput && (
-                                <div style={{ marginTop: 8 }}>
-                                    <input placeholder="New platform name" value={newTest.platformNew} onChange={e => setNewTest({ ...newTest, platformNew: e.target.value })} />
+                            <div className="form-group">
+                                <label>Platform</label>
+                                <div style={{ display: 'flex', gap: 8 }}>
+                                    <select value={newTest.platform} onChange={e => setNewTest({ ...newTest, platform: e.target.value })}>
+                                        <option value="">Select Platform</option>
+                                        {uniqueValues.platforms.map(p => <option key={p} value={p}>{p}</option>)}
+                                    </select>
+                                    <button className="btn-secondary" style={{ padding: '8px 10px' }} onClick={() => setShowNewPlatformInput(v => !v)}>+</button>
                                 </div>
-                            )}
-                        </div>
-                        <div className="form-group">
-                            <label>Subject</label>
-                            <div style={{ display: 'flex', gap: 8 }}>
-                                <select value={newTest.subject} onChange={e => setNewTest({ ...newTest, subject: e.target.value })}>
-                                    <option value="">Select Subject</option>
-                                    {uniqueValues.subjects.map(s => <option key={s} value={s}>{s}</option>)}
-                                </select>
-                                <button className="btn-secondary" style={{ padding: '8px 10px' }} onClick={() => setShowNewSubjectInput(v => !v)}>{showNewSubjectInput ? 'Cancel' : 'Add New'}</button>
+                                {showNewPlatformInput && (
+                                    <div style={{ marginTop: 8 }}>
+                                        <input placeholder="New platform name" value={newTest.platformNew} onChange={e => setNewTest({ ...newTest, platformNew: e.target.value })} />
+                                    </div>
+                                )}
                             </div>
-                            {showNewSubjectInput && (
-                                <div style={{ marginTop: 8 }}>
-                                    <input placeholder="New subject" value={newTest.subjectNew} onChange={e => setNewTest({ ...newTest, subjectNew: e.target.value })} />
+                            <div className="form-group">
+                                <label>Subject</label>
+                                <div style={{ display: 'flex', gap: 8 }}>
+                                    <select value={newTest.subject} onChange={e => setNewTest({ ...newTest, subject: e.target.value })}>
+                                        <option value="">Select Subject</option>
+                                        {uniqueValues.subjects.map(s => <option key={s} value={s}>{s}</option>)}
+                                    </select>
+                                    <button className="btn-secondary" style={{ padding: '8px 10px' }} onClick={() => setShowNewSubjectInput(v => !v)}>+</button>
                                 </div>
-                            )}
-                        </div>
-                        <div className="form-group">
-                            <label>Type</label>
-                            <div style={{ display: 'flex', gap: 8 }}>
-                                <select value={newTest.type} onChange={e => setNewTest({ ...newTest, type: e.target.value })}>
-                                    <option value="">Select Type</option>
-                                    {uniqueValues.types.map(t => <option key={t} value={t}>{t}</option>)}
-                                </select>
-                                <button className="btn-secondary" style={{ padding: '8px 10px' }} onClick={() => setShowNewTypeInput(v => !v)}>{showNewTypeInput ? 'Cancel' : 'Add New'}</button>
+                                {showNewSubjectInput && (
+                                    <div style={{ marginTop: 8 }}>
+                                        <input placeholder="New subject" value={newTest.subjectNew} onChange={e => setNewTest({ ...newTest, subjectNew: e.target.value })} />
+                                    </div>
+                                )}
                             </div>
-                            {showNewTypeInput && (
-                                <div style={{ marginTop: 8 }}>
-                                    <input placeholder="New type" value={newTest.typeNew} onChange={e => setNewTest({ ...newTest, typeNew: e.target.value })} />
+                            <div className="form-group">
+                                <label>Type</label>
+                                <div style={{ display: 'flex', gap: 8 }}>
+                                    <select value={newTest.type} onChange={e => setNewTest({ ...newTest, type: e.target.value })}>
+                                        <option value="">Select Type</option>
+                                        {uniqueValues.types.map(t => <option key={t} value={t}>{t}</option>)}
+                                    </select>
+                                    <button className="btn-secondary" style={{ padding: '8px 10px' }} onClick={() => setShowNewTypeInput(v => !v)}>+</button>
                                 </div>
-                            )}
+                                {showNewTypeInput && (
+                                    <div style={{ marginTop: 8 }}>
+                                        <input placeholder="New type" value={newTest.typeNew} onChange={e => setNewTest({ ...newTest, typeNew: e.target.value })} />
+                                    </div>
+                                )}
+                            </div>
+                            <div className="form-group"><label>Date</label><input type="date" value={newTest.date} onChange={e => setNewTest({ ...newTest, date: e.target.value })} /></div>
+                            <div className="form-group"><label>Questions</label><input type="number" value={newTest.questions} onChange={e => setNewTest({ ...newTest, questions: e.target.value })} /></div>
+                            <div className="form-group"><label>Marks</label><input type="number" value={newTest.marks} onChange={e => setNewTest({ ...newTest, marks: e.target.value })} /></div>
+                            <div className="form-group"><label>Time (minutes)</label><input type="number" value={newTest.time} onChange={e => setNewTest({ ...newTest, time: e.target.value })} /></div>
+                            <div className="form-group"><label>Rank</label><input type="number" min="1" value={newTest.rank} onChange={e => setNewTest({ ...newTest, rank: e.target.value })} /></div>
+                            <div className="form-group"><label>Total Students</label><input type="number" min="1" value={newTest.total_students} onChange={e => setNewTest({ ...newTest, total_students: e.target.value })} /></div>
+                            <div className="form-group full-width"><label>Remarks</label><textarea value={newTest.remarks} onChange={e => setNewTest({ ...newTest, remarks: e.target.value })} /></div>
                         </div>
-                        <div className="form-group"><label>Date</label><input type="date" value={newTest.date} onChange={e => setNewTest({ ...newTest, date: e.target.value })} /></div>
-                        <div className="form-group"><label>Questions</label><input type="number" value={newTest.questions} onChange={e => setNewTest({ ...newTest, questions: e.target.value })} /></div>
-                        <div className="form-group"><label>Marks</label><input type="number" value={newTest.marks} onChange={e => setNewTest({ ...newTest, marks: e.target.value })} /></div>
-                        <div className="form-group"><label>Time (minutes)</label><input type="number" value={newTest.time} onChange={e => setNewTest({ ...newTest, time: e.target.value })} /></div>
-                        <div className="form-group"><label>Remarks</label><textarea value={newTest.remarks} onChange={e => setNewTest({ ...newTest, remarks: e.target.value })} /></div>
-                        <div className="form-group"><label>Rank</label><input type="number" min="1" value={newTest.rank} onChange={e => setNewTest({ ...newTest, rank: e.target.value })} /></div>
-                        <div className="form-group"><label>Total Students</label><input type="number" min="1" value={newTest.total_students} onChange={e => setNewTest({ ...newTest, total_students: e.target.value })} /></div>
                         <div className="modal-actions">
                             <button className="btn-secondary" onClick={() => setShowAddModal(false)}>Cancel</button>
                             <button className="btn-primary" onClick={addNewTest}>Add Test</button>

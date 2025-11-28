@@ -207,23 +207,28 @@
             border-color: var(--md-sys-color-primary);
         }
 
-        /* Inputs & Selects (Outlined Text Field Style) */
-        .filters-grid {
+        /* Form Layout */
+        .form-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
             gap: 16px;
-            margin-bottom: 16px;
         }
-        
-        .filter-group {
+
+        .form-group {
+            margin-bottom: 0;
             display: flex;
             flex-direction: column;
-            gap: 4px;
+            gap: 6px;
+        }
+
+        .form-group.full-width {
+            grid-column: 1 / -1;
         }
 
         label {
             font-size: 12px;
-            color: var(--md-sys-color-on-surface-variant);
+            font-weight: 500;
+            color: var(--md-sys-color-primary);
             margin-left: 4px;
         }
 
@@ -231,24 +236,23 @@
             font-family: 'Roboto', sans-serif;
             font-size: 16px;
             padding: 12px 16px;
-            border-radius: 4px;
+            border-radius: 8px;
             border: 1px solid var(--md-sys-color-outline);
             background-color: var(--md-sys-color-surface);
             color: var(--md-sys-color-on-surface);
-            transition: border-color 0.2s;
+            transition: all 0.2s;
+            width: 100%;
         }
 
         input:focus, select:focus, textarea:focus {
             outline: none;
             border-color: var(--md-sys-color-primary);
-            border-width: 2px;
-            padding: 11px 15px; /* Adjust for border width */
+            box-shadow: 0 0 0 2px var(--md-sys-color-primary-container);
         }
-
-        /* Table */
-        table {
-            width: 100%;
-            border-collapse: collapse;
+        
+        textarea {
+            resize: vertical;
+            min-height: 80px;
         }
 
         th {
@@ -318,7 +322,7 @@
             background: var(--md-sys-color-surface);
             padding: 24px;
             border-radius: 28px;
-            max-width: 500px;
+            max-width: 600px;
             width: 90%;
             max-height: 80vh;
             overflow-y: auto;
