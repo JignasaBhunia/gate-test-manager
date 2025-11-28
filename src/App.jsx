@@ -43,6 +43,40 @@ function parseCSV(csv) {
 // Derive percent marks and percentile for each test.
 // If user supplies rank and total_students, percentile is computed from rank.
 // Otherwise percentile is computed from percent-marks distribution across tests.
+// CSV Parser
+function parseCSV(csvText) {
+    const lines = csvText.split(/\r?\n/).filter(l => l.trim());
+    if (lines.length < 2) return [];
+    const headers = lines[0].split(',').map(h => h.trim());
+    const result = [];
+    for (let i = 1; i < lines.length; i++) {
+        // Handle quoted strings (e.g. "Topic, Subtopic")
+        const row = [];
+        let inQuote = false;
+        let current = '';
+        for (let char of lines[i]) {
+            if (char === '"') {
+                inQuote = !inQuote;
+            } else if (char === ',' && !inQuote) {
+                row.push(current.trim());
+                current = '';
+            } else {
+                current += char;
+            }
+        }
+        row.push(current.trim());
+
+        if (row.length === headers.length) {
+            const obj = {};
+            headers.forEach((h, idx) => {
+                obj[h] = row[idx];
+            });
+            result.push(obj);
+        }
+    }
+    return result;
+}
+
 function deriveMetrics(arr) {
     try {
         if (!Array.isArray(arr)) return [];
