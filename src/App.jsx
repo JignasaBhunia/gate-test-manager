@@ -1,7 +1,8 @@
 const { useState, useEffect, useMemo, useRef } = React;
 
 // Load CSV from GitHub - FIXED: pointing to main branch
-const GITHUB_CSV_URL = 'https://raw.githubusercontent.com/JignasaBhunia/gate-test-manager/main/tests_seed.csv';
+// Load data from local manifest
+const MANIFEST_URL = 'data/manifest.json';
 const STORAGE_KEY = 'gate_tests_v1';
 const SETTINGS_KEY = 'gate_tests_settings_v1';
 
@@ -100,6 +101,14 @@ function deriveMetrics(arr) {
     }
 }
 
+// Helper to merge tests: incoming overwrites existing by ID, adds new
+const mergeTests = (existing, incoming) => {
+    const map = new Map();
+    if (Array.isArray(existing)) existing.forEach(t => map.set(t.id, t));
+    if (Array.isArray(incoming)) incoming.forEach(t => map.set(t.id, t));
+    return Array.from(map.values());
+};
+
 function App() {
     const MAX_COMPARE_USERS = 5; // only allow comparing up to this many users (free tier/support constraint)
     const [tests, setTests] = useState([]);
@@ -172,6 +181,40 @@ function App() {
     };
 
 
+    const loadFromManifest = () => {
+        console.log('Loading data from manifest:', MANIFEST_URL);
+        fetch(MANIFEST_URL)
+            .then(response => {
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                return response.json();
+            })
+            .then(manifest => {
+                if (!manifest.files || !Array.isArray(manifest.files)) throw new Error('Invalid manifest format');
+                const promises = manifest.files.map(file => 
+                    fetch(file).then(r => {
+                        if (!r.ok) throw new Error(`Failed to load ${file}`);
+                        return r.text();
+                    }).then(parseCSV)
+                );
+                return Promise.all(promises);
+            })
+            .then(results => {
+                // If we have already loaded remote data (e.g. fast firebase auth), DO NOT overwrite
+                if (hasLoadedRemote.current) {
+                    console.log('Ignoring local data load because remote data already loaded');
+                    return;
+                }
+                const allTests = results.flat();
+                setTests(deriveMetrics(allTests));
+                setLoading(false);
+            })
+            .catch(err => {
+                console.error('Error loading data:', err);
+                setError(err.message);
+                setLoading(false);
+            });
+    };
+
     useEffect(() => {
         // load settings
         try {
@@ -179,7 +222,7 @@ function App() {
             if (raw) setSettings(JSON.parse(raw));
         } catch (e) { console.warn('Could not parse settings', e); }
 
-        // Load tests from localStorage first, fallback to CSV
+        // Load tests from localStorage first, fallback to Manifest
         try {
             const raw = localStorage.getItem(STORAGE_KEY);
             if (raw) {
@@ -192,27 +235,7 @@ function App() {
             console.warn('Failed to read local storage', e);
         }
 
-        console.log('Loading CSV from:', GITHUB_CSV_URL);
-        fetch(GITHUB_CSV_URL)
-            .then(response => {
-                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-                return response.text();
-            })
-            .then(csv => {
-                // If we have already loaded remote data (e.g. fast firebase auth), DO NOT overwrite with CSV
-                if (hasLoadedRemote.current) {
-                    console.log('Ignoring CSV load because remote data already loaded');
-                    return;
-                }
-                const parsedTests = parseCSV(csv);
-                setTests(deriveMetrics(parsedTests));
-                setLoading(false);
-            })
-            .catch(err => {
-                console.error('Error loading CSV:', err);
-                setError(err.message);
-                setLoading(false);
-            });
+        loadFromManifest();
     }, []);
 
     // Apply theme
@@ -689,6 +712,29 @@ function App() {
 
 
 
+    const handleImportJSON = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            try {
+                const imported = JSON.parse(event.target.result);
+                if (Array.isArray(imported)) {
+                    if (confirm(`Importing ${imported.length} tests. This will MERGE with your current data (updating existing IDs, adding new ones). Continue?`)) {
+                        setTests(prev => deriveMetrics(mergeTests(prev, imported)));
+                        alert('Import successful!');
+                    }
+                } else {
+                    alert('Invalid JSON format: Expected an array of tests.');
+                }
+            } catch (err) {
+                alert('Failed to parse JSON: ' + err.message);
+            }
+        };
+        reader.readAsText(file);
+        e.target.value = ''; // reset input
+    };
+
     const handleImportCSV = (e) => {
         const file = e.target.files[0];
         if (!file) return;
@@ -698,8 +744,8 @@ function App() {
                 const csv = event.target.result;
                 const parsed = parseCSV(csv);
                 if (parsed && parsed.length > 0) {
-                    if (confirm(`Importing ${parsed.length} tests from CSV. This will replace current data. Continue?`)) {
-                        setTests(deriveMetrics(parsed));
+                    if (confirm(`Importing ${parsed.length} tests from CSV. This will MERGE with your current data. Continue?`)) {
+                        setTests(prev => deriveMetrics(mergeTests(prev, parsed)));
                         alert('Import successful!');
                     }
                 } else {
@@ -718,19 +764,10 @@ function App() {
             setLoading(true);
             localStorage.removeItem(STORAGE_KEY);
             // Re-fetch CSV
-            fetch(GITHUB_CSV_URL)
-                .then(response => response.text())
-                .then(csv => {
-                    const parsedTests = parseCSV(csv);
-                    setTests(deriveMetrics(parsedTests));
-                    setLoading(false);
-                    alert('Data reset to default seed.');
-                })
-                .catch(err => {
-                    console.error('Error reloading CSV:', err);
-                    setLoading(false);
-                    alert('Failed to reload default data.');
-                });
+            setLoading(true);
+            localStorage.removeItem(STORAGE_KEY);
+            loadFromManifest();
+            alert('Data reset to default seed (reloaded from server).');
         }
     };
 
