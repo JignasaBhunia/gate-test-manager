@@ -9,6 +9,7 @@ A comprehensive React-based application designed to help students track, manage,
 - **Centralized Tracking**: View all your test attempts in a sortable and filterable table.
 - **Advanced Filtering**: Filter tests by Platform, Subject, Type (Topic/Subject/Full), Status, and Date range.
 - **Customizable View**: Toggle column visibility to focus on the metrics that matter to you.
+- **Inline Editing**: Quickly update test details directly from the table without opening a modal.
 - **CRUD Operations**: Easily Add, Edit, and Delete test records.
 - **CSV Support**: Import test data from CSV or export your data for backup/external analysis.
 
@@ -22,6 +23,7 @@ A comprehensive React-based application designed to help students track, manage,
 
 - **Cross-Device Sync**: Optional Firebase integration to sync your data across multiple devices.
 - **Dark Mode**: Built-in dark mode for comfortable viewing at night.
+- **Sidebar Navigation**: Intuitive sidebar for easy navigation between Dashboard, Analytics, and Settings.
 - **Responsive Design**: Works seamlessly on desktop and mobile devices.
 
 ## Tech Stack
@@ -74,6 +76,20 @@ A comprehensive React-based application designed to help students track, manage,
 - `src/App.jsx`: Main application logic and state management.
 - `src/components/`: Reusable React components (`Table`, `Header`, `Analytics`).
 - `src/config.js`: Configuration file (e.g., Firebase config).
+
+## Deployment
+
+### Vercel
+
+1.  Push your code to a GitHub repository.
+2.  Go to [Vercel](https://vercel.com/) and sign up/login.
+3.  Click "Add New..." -> "Project".
+4.  Import your GitHub repository.
+5.  Vercel will automatically detect the settings. Since this is a static site with no build step (Babel Standalone), the default settings should work.
+    - **Framework Preset**: Other
+    - **Build Command**: (Leave empty)
+    - **Output Directory**: (Leave empty or `.`)
+6.  Click "Deploy".
 
 ## License
 
