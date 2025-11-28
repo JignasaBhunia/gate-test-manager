@@ -435,12 +435,7 @@ function App() {
         ));
     };
 
-    const handleCellEdit = (testId, field, value) => {
-        setTests(prev => deriveMetrics(prev.map(test =>
-            test.id === testId ? { ...test, [field]: value } : test
-        )));
-        setEditingCell(null);
-    };
+
 
     const openEditModal = (test) => {
         setEditingTest({ ...test });
